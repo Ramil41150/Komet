@@ -23,8 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:open_file/open_file.dart';
 import 'package:gwid/full_screen_video_player.dart';
 
-// Кэш для уже вычисленных цветов
-final _userColorCache = <int, Color>{};
+
 bool _currentIsDark = false;
 
 enum MessageReadStatus {
@@ -102,16 +101,12 @@ class FileDownloadProgressService {
 Color _getUserColor(int userId, BuildContext context) {
   final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-  // Очищаем кэш при смене темы
+
   if (isDark != _currentIsDark) {
-    _userColorCache.clear();
+    
     _currentIsDark = isDark;
   }
 
-  // Возвращаем из кэша, если уже вычисляли
-  if (_userColorCache.containsKey(userId)) {
-    return _userColorCache[userId]!;
-  }
 
   final List<Color> materialYouColors = isDark
       ? [
@@ -166,8 +161,6 @@ Color _getUserColor(int userId, BuildContext context) {
   final colorIndex = userId % materialYouColors.length;
   final color = materialYouColors[colorIndex];
 
-  // Сохраняем в кэш
-  _userColorCache[userId] = color;
 
   return color;
 }
