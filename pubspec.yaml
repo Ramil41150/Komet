@@ -121,8 +121,6 @@ dependencies:
   flutter_inappwebview: ^6.1.5
 
   chewie: ^1.7.5
-  webview_flutter: ^3.0.4
-  flutter_linux_webview: ^0.1.0
 
 dev_dependencies:
   flutter_test:
