@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:gwid/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';

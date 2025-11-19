@@ -4,7 +4,7 @@ import 'package:gwid/models/chat.dart';
 import 'package:gwid/models/message.dart';
 import 'package:gwid/models/contact.dart';
 import 'package:gwid/models/profile.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:gwid/widgets/chat_message_bubble.dart';
 import 'package:gwid/chat_screen.dart';
 

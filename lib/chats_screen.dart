@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:gwid/chat_screen.dart';
 import 'package:gwid/manage_account_screen.dart';

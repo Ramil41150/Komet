@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:gwid/device_presets.dart';
 import 'package:gwid/phone_entry_screen.dart';

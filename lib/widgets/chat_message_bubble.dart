@@ -17,7 +17,7 @@ import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gwid/chat_screen.dart';
 import 'package:gwid/services/avatar_cache_service.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:open_file/open_file.dart';

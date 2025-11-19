@@ -9,7 +9,7 @@ import 'theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'connection_lifecycle_manager.dart';
 import 'services/cache_service.dart';
 import 'services/avatar_cache_service.dart';

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gwid/chats_screen.dart';
 import 'package:gwid/phone_entry_screen.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:gwid/screens/settings/reconnection_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gwid/services/version_checker.dart';

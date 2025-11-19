@@ -1,7 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:gwid/models/profile.dart';
 import 'package:gwid/phone_entry_screen.dart';
 import 'package:image_picker/image_picker.dart';

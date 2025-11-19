@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gwid/models/profile.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:gwid/manage_account_screen.dart';
 import 'package:gwid/screens/settings/appearance_settings_screen.dart';
 import 'package:gwid/screens/settings/notification_settings_screen.dart';

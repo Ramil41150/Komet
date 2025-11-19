@@ -10,7 +10,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:gwid/home_screen.dart';
 import 'package:gwid/proxy_service.dart';
 import 'package:gwid/proxy_settings.dart';

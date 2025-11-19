@@ -3,7 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:gwid/otp_screen.dart';
 import 'package:gwid/proxy_service.dart';
 import 'package:gwid/screens/settings/proxy_settings_screen.dart';

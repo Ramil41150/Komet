@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:gwid/api_service.dart';
+import 'package:gwid/api/api_service.dart';
 import 'package:gwid/models/contact.dart';
 import 'package:gwid/services/avatar_cache_service.dart';
 import 'package:gwid/widgets/user_profile_panel.dart';
