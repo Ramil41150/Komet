@@ -4,7 +4,7 @@ import 'dart:async';
 import '../connection/connection_logger.dart';
 import '../connection/connection_state.dart' as conn_state;
 import '../connection/health_monitor.dart';
-import '../api_service_v2.dart';
+import 'package:gwid/api/api_service.dart';
 
 
 class ConnectionDebugPanel extends StatefulWidget {
@@ -39,7 +39,7 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
   void _setupSubscriptions() {
 
     _logsSubscription = Stream.periodic(const Duration(seconds: 1))
-        .asyncMap((_) async => ApiServiceV2.instance.logs.take(100).toList())
+        .asyncMap((_) async => ApiService.instance.logs.take(100).toList())
         .listen((logs) {
           if (mounted) {
             setState(() {
@@ -49,7 +49,7 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
         });
 
 
-    _stateSubscription = ApiServiceV2.instance.connectionState.listen((state) {
+    _stateSubscription = ApiService.instance.connectionState.listen((state) {
       if (mounted) {
         setState(() {
           _stateHistory.add(state);
@@ -61,7 +61,7 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
     });
 
 
-    _healthSubscription = ApiServiceV2.instance.healthMetrics.listen((health) {
+    _healthSubscription = ApiService.instance.healthMetrics.listen((health) {
       if (mounted) {
         setState(() {
           _healthMetrics.add(health);
@@ -93,7 +93,7 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),
@@ -113,7 +113,7 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Row(
@@ -223,10 +223,10 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: _getLogColor(log.level).withOpacity(0.1),
+        color: _getLogColor(log.level).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _getLogColor(log.level).withOpacity(0.3),
+          color: _getLogColor(log.level).withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -297,10 +297,10 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _getStateColor(state.state).withOpacity(0.1),
+        color: _getStateColor(state.state).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _getStateColor(state.state).withOpacity(0.3),
+          color: _getStateColor(state.state).withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -372,10 +372,10 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
       margin: const EdgeInsets.all(8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _getHealthColor(health.quality).withOpacity(0.1),
+        color: _getHealthColor(health.quality).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _getHealthColor(health.quality).withOpacity(0.3),
+          color: _getHealthColor(health.quality).withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -444,7 +444,7 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: const Center(
@@ -455,7 +455,7 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
 
   Widget _buildStatsTab() {
     return FutureBuilder<Map<String, dynamic>>(
-      future: ApiServiceV2.instance
+      future: ApiService.instance
           .getStatistics(), // Указываем Future, который нужно ожидать
       builder: (context, snapshot) {
 
@@ -667,7 +667,12 @@ class _ConnectionDebugPanelState extends State<ConnectionDebugPanel>
   }
 
   void _clearLogs() {
-
+    ConnectionLogger().clearLogs();
+    if (mounted) {
+      setState(() {
+        _logs = [];
+      });
+    }
   }
 
   void _exportLogs() {

@@ -3,6 +3,10 @@ part of 'api_service.dart';
 extension ApiServiceConnection on ApiService {
   Future<void> _connectWithFallback() async {
     _log('Начало подключения...');
+    _updateConnectionState(
+      conn_state.ConnectionState.connecting,
+      message: 'Поиск доступного сервера',
+    );
 
     while (_currentUrlIndex < _wsUrls.length) {
       final currentUrl = _wsUrls[_currentUrlIndex];
@@ -17,6 +21,11 @@ extension ApiServiceConnection on ApiService {
             ? 'Подключено к основному серверу'
             : 'Подключено через резервный сервер';
         _connectionLogController.add('✅ $successMessage');
+        _updateConnectionState(
+          conn_state.ConnectionState.connecting,
+          message: 'Соединение установлено, ожидание handshake',
+          metadata: {'server': currentUrl},
+        );
         if (_currentUrlIndex > 0) {
           _connectionStatusController.add('Подключено через резервный сервер');
         }
@@ -25,6 +34,7 @@ extension ApiServiceConnection on ApiService {
         final errorMessage = '❌ Ошибка: ${e.toString().split(':').first}';
         print('Ошибка подключения к $currentUrl: $e');
         _connectionLogController.add(errorMessage);
+        _healthMonitor.onError(errorMessage);
         _currentUrlIndex++;
 
         if (_currentUrlIndex < _wsUrls.length) {
@@ -35,12 +45,18 @@ extension ApiServiceConnection on ApiService {
 
     _log('❌ Все серверы недоступны');
     _connectionStatusController.add('Все серверы недоступны');
+    _updateConnectionState(
+      conn_state.ConnectionState.error,
+      message: 'Все серверы недоступны',
+    );
+    _stopHealthMonitoring();
     throw Exception('Не удалось подключиться ни к одному серверу');
   }
 
   Future<void> _connectToUrl(String url) async {
     _isSessionOnline = false;
     _onlineCompleter = Completer<void>();
+    _currentServerUrl = url;
     final bool hadChatsFetched = _chatsFetchedInThisSession;
     final bool hasValidToken = authToken != null;
 
@@ -96,6 +112,11 @@ extension ApiServiceConnection on ApiService {
     print("Сессия была завершена сервером");
     _isSessionOnline = false;
     _isSessionReady = false;
+    _stopHealthMonitoring();
+    _updateConnectionState(
+      conn_state.ConnectionState.disconnected,
+      message: 'Сессия завершена сервером',
+    );
 
     authToken = null;
 
@@ -111,6 +132,12 @@ extension ApiServiceConnection on ApiService {
     print("Обработка недействительного токена");
     _isSessionOnline = false;
     _isSessionReady = false;
+    _stopHealthMonitoring();
+    _healthMonitor.onError('invalid_token');
+    _updateConnectionState(
+      conn_state.ConnectionState.error,
+      message: 'Недействительный токен',
+    );
 
     authToken = null;
     final prefs = await SharedPreferences.getInstance();
@@ -177,6 +204,10 @@ extension ApiServiceConnection on ApiService {
     _isSessionReady = false;
 
     _connectionStatusController.add("connecting");
+    _updateConnectionState(
+      conn_state.ConnectionState.connecting,
+      message: 'Инициализация подключения',
+    );
     await _connectWithFallback();
   }
 
@@ -273,6 +304,7 @@ extension ApiServiceConnection on ApiService {
         try {
           final decoded = jsonDecode(message) as Map<String, dynamic>;
           if (decoded['opcode'] == 2) {
+            _healthMonitor.onPongReceived();
             loggableMessage = '⬅️ RECV (pong) seq: ${decoded['seq']}';
           } else {
             Map<String, dynamic> loggableDecoded = Map.from(decoded);
@@ -323,6 +355,11 @@ extension ApiServiceConnection on ApiService {
             _isSessionReady = false;
             _reconnectDelaySeconds = 2;
             _connectionStatusController.add("authorizing");
+            _updateConnectionState(
+              conn_state.ConnectionState.connected,
+              message: 'Handshake успешен',
+            );
+            _startHealthMonitoring();
 
             if (_onlineCompleter != null && !_onlineCompleter!.isCompleted) {
               _onlineCompleter!.complete();
@@ -334,6 +371,11 @@ extension ApiServiceConnection on ApiService {
           if (decodedMessage is Map && decodedMessage['cmd'] == 3) {
             final error = decodedMessage['payload'];
             print('Ошибка сервера: $error');
+            _healthMonitor.onError(error?['message'] ?? 'server_error');
+            _updateConnectionState(
+              conn_state.ConnectionState.error,
+              message: error?['message'],
+            );
 
             if (error != null && error['localizedMessage'] != null) {
               _errorController.add(error['localizedMessage']);
@@ -557,12 +599,22 @@ extension ApiServiceConnection on ApiService {
         print('Ошибка WebSocket: $error');
         _isSessionOnline = false;
         _isSessionReady = false;
+        _healthMonitor.onError(error.toString());
+        _updateConnectionState(
+          conn_state.ConnectionState.error,
+          message: error.toString(),
+        );
         _reconnect();
       },
       onDone: () {
         print('WebSocket соединение закрыто. Попытка переподключения...');
         _isSessionOnline = false;
         _isSessionReady = false;
+        _stopHealthMonitoring();
+        _updateConnectionState(
+          conn_state.ConnectionState.disconnected,
+          message: 'Соединение закрыто',
+        );
 
         if (!_isSessionReady) {
           _reconnect();
@@ -577,6 +629,7 @@ extension ApiServiceConnection on ApiService {
 
     _isReconnecting = true;
     _reconnectAttempts++;
+    _healthMonitor.onReconnect();
 
     if (_reconnectAttempts > ApiService._maxReconnectAttempts) {
       print(
@@ -584,6 +637,10 @@ extension ApiServiceConnection on ApiService {
       );
       _connectionStatusController.add("disconnected");
       _isReconnecting = false;
+      _updateConnectionState(
+        conn_state.ConnectionState.error,
+        message: 'Превышено число попыток переподключения',
+      );
       return;
     }
 
@@ -607,6 +664,11 @@ extension ApiServiceConnection on ApiService {
         "Переподключаемся после ${delay.inSeconds}s... (попытка $_reconnectAttempts/${ApiService._maxReconnectAttempts})",
       );
       _isReconnecting = false;
+      _updateConnectionState(
+        conn_state.ConnectionState.reconnecting,
+        attemptNumber: _reconnectAttempts,
+        reconnectDelay: delay,
+      );
       _connectWithFallback();
     });
   }
@@ -708,6 +770,11 @@ extension ApiServiceConnection on ApiService {
     _handshakeSent = false;
     _onlineCompleter = Completer<void>();
     _chatsFetchedInThisSession = false;
+    _stopHealthMonitoring();
+    _updateConnectionState(
+      conn_state.ConnectionState.disconnected,
+      message: 'Отключено пользователем',
+    );
 
     _channel?.sink.close(status.goingAway);
     _channel = null;

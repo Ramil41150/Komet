@@ -105,6 +105,28 @@ extension ApiServiceChats on ApiService {
       }
     }
 
+    await _ensureCacheServicesInitialized();
+
+    if (!force && _lastChatsPayload == null) {
+      final cachedChats = await _chatCacheService.getCachedChats();
+      final cachedContacts = await _chatCacheService.getCachedContacts();
+      if (cachedChats != null &&
+          cachedContacts != null &&
+          cachedChats.isNotEmpty) {
+        final result = {
+          'chats': cachedChats,
+          'contacts': cachedContacts.map(_contactToMap).toList(),
+          'profile': null,
+          'presence': null,
+        };
+        _lastChatsPayload = result;
+        _lastChatsAt = DateTime.now();
+        updateContactCache(cachedContacts);
+        _preloadContactAvatars(cachedContacts);
+        return result;
+      }
+    }
+
     try {
       final payload = {"chatsCount": 100};
 
@@ -152,6 +174,13 @@ extension ApiServiceChats on ApiService {
           contactListJson.map((json) => Contact.fromJson(json)).toList();
       updateContactCache(contacts);
       _lastChatsAt = DateTime.now();
+      _preloadContactAvatars(contacts);
+      unawaited(
+        _chatCacheService.cacheChats(
+          chatListJson.cast<Map<String, dynamic>>(),
+        ),
+      );
+      unawaited(_chatCacheService.cacheContacts(contacts));
       return result;
     } catch (e) {
       print('Ошибка получения чатов: $e');
@@ -167,9 +196,33 @@ extension ApiServiceChats on ApiService {
       throw Exception("Auth token not found - please re-authenticate");
     }
 
+    await _ensureCacheServicesInitialized();
+
     if (!force && _lastChatsPayload != null && _lastChatsAt != null) {
       if (DateTime.now().difference(_lastChatsAt!) < _chatsCacheTtl) {
         return _lastChatsPayload!;
+      }
+    }
+
+    if (!force &&
+        !_chatsFetchedInThisSession &&
+        _lastChatsPayload == null) {
+      final cachedChats = await _chatCacheService.getCachedChats();
+      final cachedContacts = await _chatCacheService.getCachedContacts();
+      if (cachedChats != null &&
+          cachedContacts != null &&
+          cachedChats.isNotEmpty) {
+        final cachedResult = {
+          'chats': cachedChats,
+          'contacts': cachedContacts.map(_contactToMap).toList(),
+          'profile': null,
+          'presence': null,
+        };
+        _lastChatsPayload = cachedResult;
+        _lastChatsAt = DateTime.now();
+        updateContactCache(cachedContacts);
+        _preloadContactAvatars(cachedContacts);
+        return cachedResult;
       }
     }
 
@@ -232,6 +285,10 @@ extension ApiServiceChats on ApiService {
         _isSessionReady = true;
 
         _connectionStatusController.add("ready");
+        _updateConnectionState(
+          conn_state.ConnectionState.ready,
+          message: 'Авторизация успешна',
+        );
 
         final profile = chatResponse['payload']?['profile'];
         final contactProfile = profile?['contact'];
@@ -340,6 +397,13 @@ extension ApiServiceChats on ApiService {
           contactListJson.map((json) => Contact.fromJson(json)).toList();
       updateContactCache(contacts);
       _lastChatsAt = DateTime.now();
+      _preloadContactAvatars(contacts);
+      unawaited(
+        _chatCacheService.cacheChats(
+          chatListJson.cast<Map<String, dynamic>>(),
+        ),
+      );
+      unawaited(_chatCacheService.cacheContacts(contacts));
       _chatsFetchedInThisSession = true;
       _inflightChatsCompleter!.complete(result);
       _inflightChatsCompleter = null;
@@ -389,9 +453,21 @@ extension ApiServiceChats on ApiService {
     int chatId, {
     bool force = false,
   }) async {
+    await _ensureCacheServicesInitialized();
+
     if (!force && _messageCache.containsKey(chatId)) {
       print("Загружаем сообщения для чата $chatId из кэша.");
       return _messageCache[chatId]!;
+    }
+
+    if (!force) {
+      final cachedMessages =
+          await _chatCacheService.getCachedChatMessages(chatId);
+      if (cachedMessages != null && cachedMessages.isNotEmpty) {
+        print("История сообщений для чата $chatId загружена из ChatCacheService.");
+        _messageCache[chatId] = cachedMessages;
+        return cachedMessages;
+      }
     }
 
     print("Запрашиваем историю для чата $chatId с сервера.");
@@ -433,6 +509,8 @@ extension ApiServiceChats on ApiService {
             ..sort((a, b) => a.time.compareTo(b.time));
 
       _messageCache[chatId] = messagesList;
+      _preloadMessageImages(messagesList);
+      unawaited(_chatCacheService.cacheChatMessages(chatId, messagesList));
 
       return messagesList;
     } catch (e) {
@@ -567,6 +645,9 @@ extension ApiServiceChats on ApiService {
 
   void clearCacheForChat(int chatId) {
     _messageCache.remove(chatId);
+    if (_cacheServicesInitialized) {
+      unawaited(_chatCacheService.clearChatCache(chatId));
+    }
     print("Кэш для чата $chatId очищен.");
   }
 
@@ -651,7 +732,83 @@ extension ApiServiceChats on ApiService {
     clearChatsCache();
     _messageCache.clear();
     clearPasswordAuthData();
+    if (_cacheServicesInitialized) {
+      unawaited(_cacheService.clear());
+      unawaited(_chatCacheService.clearAllChatCache());
+      unawaited(_avatarCacheService.clearAvatarCache());
+      unawaited(ImageCacheService.instance.clearCache());
+    }
     print("Все кэши очищены из-за ошибки подключения.");
+  }
+
+  Future<Map<String, dynamic>> getStatistics() async {
+    await _ensureCacheServicesInitialized();
+
+    final cacheStats = await _cacheService.getCacheStats();
+    final chatCacheStats = await _chatCacheService.getChatCacheStats();
+    final avatarStats = await _avatarCacheService.getAvatarCacheStats();
+    final imageStats = await ImageCacheService.instance.getCacheStats();
+
+    return {
+      'api_service': {
+        'is_online': _isSessionOnline,
+        'is_ready': _isSessionReady,
+        'cached_chats': (_lastChatsPayload?['chats'] as List?)?.length ?? 0,
+        'contacts_in_memory': _contactCache.length,
+        'message_cache_entries': _messageCache.length,
+        'message_queue_length': _messageQueue.length,
+      },
+      'connection': {
+        'current_url': _currentUrlIndex < _wsUrls.length
+            ? _wsUrls[_currentUrlIndex]
+            : null,
+        'reconnect_attempts': _reconnectAttempts,
+        'last_action_time': _lastActionTime,
+      },
+      'cache_service': cacheStats,
+      'chat_cache': chatCacheStats,
+      'avatar_cache': avatarStats,
+      'image_cache': imageStats,
+    };
+  }
+
+  void _preloadContactAvatars(List<Contact> contacts) {
+    if (!_cacheServicesInitialized || contacts.isEmpty) return;
+    final photoUrls = contacts.map((c) => c.photoBaseUrl).toList();
+    if (photoUrls.isEmpty) return;
+    unawaited(ImageCacheService.instance.preloadContactAvatars(photoUrls));
+  }
+
+  void _preloadMessageImages(List<Message> messages) {
+    if (!_cacheServicesInitialized || messages.isEmpty) return;
+    final urls = <String>{};
+    for (final message in messages) {
+      for (final attach in message.attaches) {
+        final url = attach['url'] ?? attach['baseUrl'];
+        if (url is String && url.isNotEmpty) {
+          urls.add(url);
+        }
+      }
+    }
+    for (final url in urls) {
+      unawaited(ImageCacheService.instance.preloadImage(url));
+    }
+  }
+
+  Map<String, dynamic> _contactToMap(Contact contact) {
+    return {
+      'id': contact.id,
+      'name': contact.name,
+      'firstName': contact.firstName,
+      'lastName': contact.lastName,
+      'description': contact.description,
+      'photoBaseUrl': contact.photoBaseUrl,
+      'isBlocked': contact.isBlocked,
+      'isBlockedByMe': contact.isBlockedByMe,
+      'accountStatus': contact.accountStatus,
+      'status': contact.status,
+      'options': contact.options,
+    };
   }
 
   void sendMessage(

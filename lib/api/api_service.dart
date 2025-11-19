@@ -5,11 +5,18 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
+import 'package:gwid/connection/connection_logger.dart';
+import 'package:gwid/connection/connection_state.dart' as conn_state;
+import 'package:gwid/connection/health_monitor.dart';
+import 'package:gwid/image_cache_service.dart';
 import 'package:gwid/models/contact.dart';
 import 'package:gwid/models/message.dart';
 import 'package:gwid/models/profile.dart';
 import 'package:gwid/proxy_service.dart';
 import 'package:gwid/services/account_manager.dart';
+import 'package:gwid/services/avatar_cache_service.dart';
+import 'package:gwid/services/cache_service.dart';
+import 'package:gwid/services/chat_cache_service.dart';
 import 'package:gwid/spoofing_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -82,6 +89,18 @@ class ApiService {
     minutes: 5,
   );
 
+  final CacheService _cacheService = CacheService();
+  final AvatarCacheService _avatarCacheService = AvatarCacheService();
+  final ChatCacheService _chatCacheService = ChatCacheService();
+  bool _cacheServicesInitialized = false;
+
+  final ConnectionLogger _connectionLogger = ConnectionLogger();
+  final conn_state.ConnectionStateManager _connectionStateManager =
+      conn_state.ConnectionStateManager();
+  final HealthMonitor _healthMonitor = HealthMonitor();
+
+  String? _currentServerUrl;
+
   bool _isLoadingBlockedContacts = false;
 
   bool _isSessionReady = false;
@@ -94,6 +113,13 @@ class ApiService {
 
   final _connectionLogController = StreamController<String>.broadcast();
   Stream<String> get connectionLog => _connectionLogController.stream;
+
+  List<LogEntry> get logs => _connectionLogger.logs;
+
+  Stream<conn_state.ConnectionInfo> get connectionState =>
+      _connectionStateManager.stateStream;
+
+  Stream<HealthMetrics> get healthMetrics => _healthMonitor.metricsStream;
 
   final List<String> _connectionLogCache = [];
   List<String> get connectionLogCache => _connectionLogCache;
@@ -133,12 +159,23 @@ class ApiService {
   Timer? _reconnectTimer;
   bool _isReconnecting = false;
 
-  void _log(String message) {
+  void _log(
+    String message, {
+    LogLevel level = LogLevel.info,
+    String category = 'API',
+    Map<String, dynamic>? data,
+  }) {
     print(message);
     _connectionLogCache.add(message);
     if (!_connectionLogController.isClosed) {
       _connectionLogController.add(message);
     }
+    _connectionLogger.log(
+      message,
+      level: level,
+      category: category,
+      data: data,
+    );
   }
 
   void _emitLocal(Map<String, dynamic> frame) {
@@ -202,6 +239,48 @@ class ApiService {
 
   void setAppInForeground(bool isForeground) {
     _isAppInForeground = isForeground;
+  }
+
+  void _updateConnectionState(
+    conn_state.ConnectionState state, {
+    String? message,
+    int? attemptNumber,
+    Duration? reconnectDelay,
+    int? latency,
+    Map<String, dynamic>? metadata,
+  }) {
+    _connectionStateManager.setState(
+      state,
+      message: message,
+      attemptNumber: attemptNumber,
+      reconnectDelay: reconnectDelay,
+      serverUrl: _currentServerUrl,
+      latency: latency,
+      metadata: metadata,
+    );
+  }
+
+  void _startHealthMonitoring() {
+    _healthMonitor.startMonitoring(serverUrl: _currentServerUrl);
+  }
+
+  void _stopHealthMonitoring() {
+    _healthMonitor.stopMonitoring();
+  }
+
+  Future<void> initialize() async {
+    await _ensureCacheServicesInitialized();
+  }
+
+  Future<void> _ensureCacheServicesInitialized() async {
+    if (_cacheServicesInitialized) return;
+    await Future.wait([
+      _cacheService.initialize(),
+      _avatarCacheService.initialize(),
+      _chatCacheService.initialize(),
+      ImageCacheService.instance.initialize(),
+    ]);
+    _cacheServicesInitialized = true;
   }
 
   Future<String?> getClipboardData() async {

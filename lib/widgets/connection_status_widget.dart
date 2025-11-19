@@ -3,7 +3,9 @@ import 'dart:async';
 
 import '../connection/connection_state.dart' as conn_state;
 import '../connection/health_monitor.dart';
-import '../api_service_v2.dart';
+import 'package:gwid/api/api_service.dart';
+
+
 
 
 class ConnectionStatusWidget extends StatefulWidget {
@@ -37,7 +39,7 @@ class _ConnectionStatusWidgetState extends State<ConnectionStatusWidget> {
   }
 
   void _setupSubscriptions() {
-    _stateSubscription = ApiServiceV2.instance.connectionState.listen((state) {
+    _stateSubscription = ApiService.instance.connectionState.listen((state) {
       if (mounted) {
         setState(() {
           _currentState = state;
@@ -46,7 +48,7 @@ class _ConnectionStatusWidgetState extends State<ConnectionStatusWidget> {
     });
 
     if (widget.showHealthMetrics) {
-      _healthSubscription = ApiServiceV2.instance.healthMetrics.listen((
+      _healthSubscription = ApiService.instance.healthMetrics.listen((
         health,
       ) {
         if (mounted) {
@@ -77,10 +79,10 @@ class _ConnectionStatusWidgetState extends State<ConnectionStatusWidget> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: _getStatusColor().withOpacity(0.1),
+          color: _getStatusColor().withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: _getStatusColor().withOpacity(0.3),
+            color: _getStatusColor().withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -125,7 +127,7 @@ class _ConnectionStatusWidgetState extends State<ConnectionStatusWidget> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: _getStatusColor().withOpacity(0.5),
+            color: _getStatusColor().withValues(alpha: 0.5),
             blurRadius: 4,
             spreadRadius: 1,
           ),
@@ -177,7 +179,7 @@ class _ConnectionStatusWidgetState extends State<ConnectionStatusWidget> {
           Text(
             '$label: ',
             style: TextStyle(
-              color: _getStatusColor().withOpacity(0.7),
+              color: _getStatusColor().withValues(alpha: 0.7),
               fontSize: 10,
             ),
           ),
@@ -200,9 +202,9 @@ class _ConnectionStatusWidgetState extends State<ConnectionStatusWidget> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: _getHealthColor().withOpacity(0.1),
+        color: _getHealthColor().withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _getHealthColor().withOpacity(0.3), width: 1),
+        border: Border.all(color: _getHealthColor().withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +235,7 @@ class _ConnectionStatusWidgetState extends State<ConnectionStatusWidget> {
     return Container(
       height: 4,
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.2),
+        color: Colors.grey.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(2),
       ),
       child: FractionallySizedBox(
@@ -348,7 +350,7 @@ class _ConnectionIndicatorState extends State<ConnectionIndicator> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<conn_state.ConnectionInfo>(
-      stream: ApiServiceV2.instance.connectionState,
+      stream: ApiService.instance.connectionState,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return SizedBox(
@@ -382,11 +384,11 @@ class _ConnectionIndicatorState extends State<ConnectionIndicator> {
           width: widget.size,
           height: widget.size,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.3 + (0.7 * value)),
+            color: color.withValues(alpha: 0.3 + (0.7 * value)),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.5 * value),
+                color: color.withValues(alpha: 0.5 * value),
                 blurRadius: 8 * value,
                 spreadRadius: 2 * value,
               ),
@@ -412,7 +414,7 @@ class _ConnectionIndicatorState extends State<ConnectionIndicator> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.5),
+            color: color.withValues(alpha: 0.5),
             blurRadius: 4,
             spreadRadius: 1,
           ),
