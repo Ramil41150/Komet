@@ -82,6 +82,7 @@ class MyApp extends StatelessWidget {
             dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
           ),
           useMaterial3: true,
+          pageTransitionsTheme: PageTransitionsTheme(builders: {TargetPlatform.android: CupertinoPageTransitionsBuilder()}),
           appBarTheme: AppBarTheme(
             titleTextStyle: TextStyle(
               fontSize: 16,
@@ -89,7 +90,7 @@ class MyApp extends StatelessWidget {
               color: ColorScheme.fromSeed(
                 seedColor: accentColor,
                 brightness: Brightness.light,
-              ).onSurface, // ← Используем цвет onSurface из цветовой схемы
+              ).onSurface,
             ),
           ),
         );
