@@ -56,7 +56,7 @@ class _OTPScreenState extends State<OTPScreen> {
         if (payload != null &&
             payload['tokenAttrs']?['LOGIN']?['token'] != null) {
           final String finalToken = payload['tokenAttrs']['LOGIN']['token'];
-          final userId = payload['tokenAttrs']?['LOGIN']?['userId'];
+          final userId = payload['payload']?['profile']?['contact']?['id'];
           print('Успешная авторизация! Токен: $finalToken, UserID: $userId');
 
           ApiService.instance

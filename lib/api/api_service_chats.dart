@@ -61,6 +61,7 @@ extension ApiServiceChats on ApiService {
             "[_sendAuthRequestAfterHandshake] ✅ Профиль и ID пользователя найдены. ID: ${contactProfile['id']}. ЗАПУСКАЕМ АНАЛИТИКУ.",
           );
           _userId = contactProfile['id'];
+          await prefs.setString('userId', _userId.toString());
           _sessionId = DateTime.now().millisecondsSinceEpoch;
           _lastActionTime = _sessionId;
 

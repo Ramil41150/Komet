@@ -24,6 +24,7 @@ import 'package:gwid/screens/edit_contact_screen.dart';
 import 'package:gwid/widgets/contact_name_widget.dart';
 import 'package:gwid/widgets/contact_avatar_widget.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
@@ -343,6 +344,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _initializeChat() async {
     await _loadCachedContacts();
+    final prefs = await SharedPreferences.getInstance();
 
     if (!widget.isGroupChat && !widget.isChannel) {
       _contactDetailsCache[widget.contact.id] = widget.contact;
@@ -357,7 +359,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (contactProfile != null &&
         contactProfile['id'] != null &&
         contactProfile['id'] != 0) {
-      _actualMyId = contactProfile['id'];
+          String? idStr = await prefs.getString("userId");
+          _actualMyId = idStr!.isNotEmpty ? int.parse(idStr) : contactProfile['id'];
       print(
         '✅ [_initializeChat] ID пользователя получен из ApiService: $_actualMyId',
       );
@@ -374,7 +377,8 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     } else if (_actualMyId == null) {
-      _actualMyId = widget.myId;
+      final prefs = await SharedPreferences.getInstance();
+      _actualMyId = int.parse(await prefs.getString('userId')!);;
       print(
         '⚠️ [_initializeChat] ID не найден, используется из виджета: $_actualMyId',
       );
@@ -1129,13 +1133,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
       final int tempCid = DateTime.now().millisecondsSinceEpoch;
       final tempMessageJson = {
-        'id': 'local_$tempCid', // Временный "локальный" ID
+        'id': 'local_$tempCid',
         'text': text,
         'time': tempCid,
         'sender': _actualMyId!,
-        'cid': tempCid, // Уникальный ID клиента
+        'cid': tempCid,
         'type': 'USER',
-        'attaches': [], // Оптимистично без вложений (для текста)
+        'attaches': [],
         'link': _replyingToMessage != null
             ? {
                 'type': 'REPLY',
@@ -1191,7 +1195,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _testSlideAnimation() {
-    print('=== ТЕСТ SLIDE+ АНИМАЦИИ ===');
 
     final myMessage = Message(
       id: 'test_my_${DateTime.now().millisecondsSinceEpoch}',
@@ -1948,12 +1951,12 @@ class _ChatScreenState extends State<ChatScreen> {
       for (final contact in chatContacts) {
         _contactDetailsCache[contact.id] = contact;
 
-        if (contact.id == widget.myId && _actualMyId == null) {
-          _actualMyId = contact.id;
+        /*if (contact.id == widget.myId && _actualMyId == null) {
+          //_actualMyId = contact.id;
           print(
             '✅ [_loadCachedContacts] Собственный ID восстановлен из кэша: $_actualMyId (${contact.name})',
           );
-        }
+        }*/
       }
       print(
         '✅ Загружено ${_contactDetailsCache.length} контактов из кэша чата ${widget.chatId}',
@@ -1968,7 +1971,9 @@ class _ChatScreenState extends State<ChatScreen> {
         _contactDetailsCache[contact.id] = contact;
 
         if (contact.id == widget.myId && _actualMyId == null) {
-          _actualMyId = contact.id;
+          final prefs = await SharedPreferences.getInstance();
+
+          _actualMyId = int.parse(await prefs.getString('userId')!);
           print(
             '✅ [_loadCachedContacts] Собственный ID восстановлен из глобального кэша: $_actualMyId (${contact.name})',
           );
@@ -4364,6 +4369,7 @@ extension BrightnessExtension on Brightness {
   bool get isDark => this == Brightness.dark;
 }
 
+//note: unused
 class GroupProfileDraggableDialog extends StatelessWidget {
   final Contact contact;
 
@@ -4427,8 +4433,6 @@ class GroupProfileDraggableDialog extends StatelessWidget {
                     IconButton(
                       icon: Icon(Icons.settings, color: colors.primary),
                       onPressed: () async {
-                        final myId = 0; // This should be passed or retrieved
-
                         Navigator.of(context).pop();
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -4436,7 +4440,7 @@ class GroupProfileDraggableDialog extends StatelessWidget {
                               chatId: -contact
                                   .id, // Convert back to positive chatId
                               initialContact: contact,
-                              myId: myId,
+                              myId: 0,
                             ),
                           ),
                         );

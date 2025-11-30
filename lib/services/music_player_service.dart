@@ -104,6 +104,7 @@ class MusicPlayerService extends ChangeNotifier {
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration?>? _durationSubscription;
   StreamSubscription<PlayerState>? _playerStateSubscription;
+  bool _wasCompleted = false;
 
   MusicTrack? get currentTrack =>
       _currentIndex >= 0 && _currentIndex < _playlist.length
@@ -129,10 +130,20 @@ class MusicPlayerService extends ChangeNotifier {
     });
 
     _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
+      final wasCompleted = _wasCompleted;
       _isPlaying = state.playing;
       _isLoading =
           state.processingState == ProcessingState.loading ||
           state.processingState == ProcessingState.buffering;
+      
+      // Detect track completion and auto-play next track
+      if (state.processingState == ProcessingState.completed && !wasCompleted) {
+        _wasCompleted = true;
+        _autoPlayNext();
+      } else if (state.processingState != ProcessingState.completed) {
+        _wasCompleted = false;
+      }
+      
       notifyListeners();
     });
 
@@ -255,6 +266,20 @@ class MusicPlayerService extends ChangeNotifier {
     _currentIndex = (_currentIndex - 1 + _playlist.length) % _playlist.length;
     await _loadAndPlayTrack(_playlist[_currentIndex]);
     await savePlaylist();
+  }
+
+  Future<void> _autoPlayNext() async {
+    if (_playlist.isEmpty || _playlist.length <= 1) return;
+    
+    try {
+      _currentIndex = (_currentIndex + 1) % _playlist.length;
+      await _loadAndPlayTrack(_playlist[_currentIndex]);
+      await savePlaylist();
+    } catch (e) {
+      print('Error auto-playing next track: $e');
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> addToPlaylist(MusicTrack track) async {

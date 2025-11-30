@@ -270,9 +270,9 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   void _navigateToLogin() {
     print('Перенаправляем на экран входа из-за недействительного токена');
-    Navigator.of(context).pushReplacement(
+    /*Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const PhoneEntryScreen()),
-    );
+    );*/
   }
 
   void _showTokenExpiredDialog(String message) {

@@ -200,18 +200,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Настройки"),
-        leading: widget.showBackToChats
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onBackToChats,
-              )
-            : null,
-      ),
-      body: SafeArea(
-        child: _buildSettingsContent(),
-      ),
+          appBar: AppBar(
+            title: const Text("Настройки"),
+            /*leading: widget.showBackToChats
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: widget.onBackToChats,
+                  )
+                : null,*/
+          ),
+          body: _buildSettingsContent(),
     );
   }
 
@@ -224,8 +222,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isSmallScreen = screenWidth < 600 || screenHeight < 800;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
+      body: SafeArea(
+        child: Stack(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
@@ -346,7 +344,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
           ),
         ],
-      ),
+      )),
     );
   }
 

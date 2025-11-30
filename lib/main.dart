@@ -102,6 +102,7 @@ class MyApp extends StatelessWidget {
             dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
           ),
           useMaterial3: true,
+          pageTransitionsTheme: PageTransitionsTheme(builders: {TargetPlatform.android: CupertinoPageTransitionsBuilder()}),
           appBarTheme: AppBarTheme(
             titleTextStyle: TextStyle(
               fontSize: 16,
@@ -152,12 +153,14 @@ class MyApp extends StatelessWidget {
           navigatorKey: navigatorKey,
           builder: (context, child) {
             final showHud = themeProvider.debugShowPerformanceOverlay;
-            if (!showHud) return child ?? const SizedBox.shrink();
-            return Stack(
-              children: [
-                if (child != null) child,
-                const Positioned(top: 8, right: 56, child: _MiniFpsHud()),
-              ],
+            return SizedBox.expand(
+              child: Stack(
+                children: [
+                  if (child != null) child,
+                  if (showHud)
+                    const Positioned(top: 8, right: 56, child: _MiniFpsHud()),
+                ],
+              ),
             );
           },
           theme: baseLightTheme,

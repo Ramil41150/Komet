@@ -132,15 +132,21 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
     return ValueListenableBuilder<bool>(
       valueListenable: BottomSheetMusicPlayer.isExpandedNotifier,
       builder: (context, isPlayerExpanded, child) {
-        return PopScope(
-          canPop: !isPlayerExpanded,
-          onPopInvoked: (didPop) {
-            if (!didPop && isPlayerExpanded) {
-              BottomSheetMusicPlayer.isExpandedNotifier.value = false;
-            }
-          },
-          child: Scaffold(
-            appBar: AppBar(title: const Text('Музыка')),
+        return ValueListenableBuilder<bool>(
+          valueListenable: BottomSheetMusicPlayer.isFullscreenNotifier,
+          builder: (context, isFullscreen, _) {
+            return PopScope(
+              canPop: !isPlayerExpanded,
+              onPopInvoked: (didPop) {
+                if (!didPop && isPlayerExpanded) {
+                  BottomSheetMusicPlayer.isExpandedNotifier.value = false;
+                  BottomSheetMusicPlayer.isFullscreenNotifier.value = false;
+                }
+              },
+              child: Scaffold(
+                appBar: isFullscreen
+                    ? null
+                    : AppBar(title: const Text('Музыка')),
             body: Stack(
               children: [
                 _isLoading
@@ -321,7 +327,9 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
                   ),
               ],
             ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

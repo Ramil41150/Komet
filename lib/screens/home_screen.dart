@@ -1242,7 +1242,6 @@ class _DesktopLayoutState extends State<_DesktopLayout> {
                     isChannel: _isChannel,
                     participantCount: _participantCount,
                     isDesktopMode: true,
-                    onChatUpdated: () {},
                   ),
           ),
         ],
