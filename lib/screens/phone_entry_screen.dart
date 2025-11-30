@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:gwid/api/api_service.dart';
 import 'package:gwid/screens/otp_screen.dart';
 import 'package:gwid/utils/proxy_service.dart';
+import 'package:gwid/screens/registration_screen.dart';
 import 'package:gwid/screens/settings/auth_settings_screen.dart';
 import 'package:gwid/screens/token_auth_screen.dart';
 import 'package:gwid/screens/tos_screen.dart'; // Импорт экрана ToS
@@ -49,11 +50,67 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
       digits: 10,
     ),
     Country(
+      name: 'Азербайджан',
+      code: '+994',
+      flag: '🇦🇿',
+      mask: '+994 (##) ###-##-##',
+      digits: 9,
+    ),
+    Country(
+      name: 'Армения',
+      code: '+374',
+      flag: '🇦🇲',
+      mask: '+374 (##) ###-###',
+      digits: 8,
+    ),
+    Country(
+      name: 'Казахстан',
+      code: '+7',
+      flag: '🇰🇿',
+      mask: '+7 (###) ###-##-##',
+      digits: 10,
+    ),
+    Country(
+      name: 'Кыргызстан',
+      code: '+996',
+      flag: '🇰🇬',
+      mask: '+996 (###) ###-###',
+      digits: 9,
+    ),
+    Country(
+      name: 'Молдова',
+      code: '+373',
+      flag: '🇲🇩',
+      mask: '+373 (####) ####',
+      digits: 8,
+    ),
+    Country(
+      name: 'Таджикистан',
+      code: '+992',
+      flag: '🇹🇯',
+      mask: '+992 (##) ###-##-##',
+      digits: 9,
+    ),
+    Country(
+      name: 'Узбекистан',
+      code: '+998',
+      flag: '🇺🇿',
+      mask: '+998 (##) ###-##-##',
+      digits: 9,
+    ),
+    Country(
       name: 'Беларусь',
       code: '+375',
       flag: '🇧🇾',
       mask: '+375 (##) ###-##-##',
       digits: 9,
+    ),
+    Country(
+      name: 'Свое',
+      code: '',
+      flag: '',
+      mask: '',
+      digits: 0, // Без ограничения
     ),
   ];
 
@@ -66,6 +123,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
   StreamSubscription? _apiSubscription;
   bool _showContent = false;
   bool _isTosAccepted = false; // Состояние для отслеживания принятия соглашения
+  String _customPrefix = ''; // Для "Свой префикс"
 
   late final AnimationController _animationController;
   late final Animation<Alignment> _topAlignmentAnimation;
@@ -120,8 +178,11 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
         final payload = message['payload'];
         if (payload != null && payload['token'] != null) {
           final String token = payload['token'];
+          final String prefix = _selectedCountry.mask.isEmpty
+              ? _customPrefix
+              : _selectedCountry.code;
           final String fullPhoneNumber =
-              _selectedCountry.code + _maskFormatter.getUnmaskedText();
+              prefix + _maskFormatter.getUnmaskedText();
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) =>
@@ -141,14 +202,23 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
   }
 
   void _initializeMaskFormatter() {
-    final mask = _selectedCountry.mask
-        .replaceFirst(RegExp(r'^\+\d+\s?'), '')
-        .trim();
-    _maskFormatter = MaskTextInputFormatter(
-      mask: mask,
-      filter: {"#": RegExp(r'[0-9]')},
-      type: MaskAutoCompletionType.lazy,
-    );
+    if (_selectedCountry.mask.isEmpty) {
+      // Для "Свой префикс" - без маски, только цифры
+      _maskFormatter = MaskTextInputFormatter(
+        mask: '',
+        filter: {"#": RegExp(r'[0-9]')},
+        type: MaskAutoCompletionType.lazy,
+      );
+    } else {
+      final mask = _selectedCountry.mask
+          .replaceFirst(RegExp(r'^\+\d+\s?'), '')
+          .trim();
+      _maskFormatter = MaskTextInputFormatter(
+        mask: mask,
+        filter: {"#": RegExp(r'[0-9]')},
+        type: MaskAutoCompletionType.lazy,
+      );
+    }
   }
 
   void _onPhoneChanged() {
@@ -165,8 +235,11 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
         });
       }
     }
-    final isFull =
-        _maskFormatter.getUnmaskedText().length == _selectedCountry.digits;
+
+    // Для "Свой префикс" проверяем минимальную длину (например, 5 цифр)
+    final isFull = _selectedCountry.mask.isEmpty
+        ? _maskFormatter.getUnmaskedText().length >= 5
+        : _maskFormatter.getUnmaskedText().length == _selectedCountry.digits;
     if (isFull != _isButtonEnabled) {
       setState(() => _isButtonEnabled = isFull);
     }
@@ -192,15 +265,76 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
     return null;
   }
 
-  void _onCountryChanged(Country? country) {
+  void _onCountryChanged(Country? country) async {
     if (country != null && country != _selectedCountry) {
-      setState(() {
-        _selectedCountry = country;
-        _phoneController.clear();
-        _initializeMaskFormatter();
-        _isButtonEnabled = false;
-      });
+      // Если выбран "Свой префикс", показываем диалог для ввода префикса
+      if (country.mask.isEmpty) {
+        final prefix = await _showCustomPrefixDialog();
+        if (prefix == null || prefix.isEmpty) {
+          return; // Отменено
+        }
+        setState(() {
+          _selectedCountry = country;
+          _customPrefix = prefix.startsWith('+') ? prefix : '+$prefix';
+          _phoneController.clear();
+          _initializeMaskFormatter();
+          _isButtonEnabled = false;
+        });
+      } else {
+        setState(() {
+          _selectedCountry = country;
+          _customPrefix = '';
+          _phoneController.clear();
+          _initializeMaskFormatter();
+          _isButtonEnabled = false;
+        });
+      }
     }
+  }
+
+  Future<String?> _showCustomPrefixDialog() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        final textTheme = Theme.of(context).textTheme;
+        return AlertDialog(
+          title: Text(
+            'Введите код страны',
+            style: GoogleFonts.manrope(
+              textStyle: textTheme.titleLarge,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.phone,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: '+123',
+              prefixText: '+',
+              border: const OutlineInputBorder(),
+            ),
+            style: GoogleFonts.manrope(textStyle: textTheme.titleMedium),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Отмена', style: GoogleFonts.manrope()),
+            ),
+            FilledButton(
+              onPressed: () {
+                final prefix = controller.text.trim();
+                if (prefix.isNotEmpty) {
+                  Navigator.of(context).pop(prefix);
+                }
+              },
+              child: Text('OK', style: GoogleFonts.manrope()),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _checkAnonymitySettings() async {
@@ -221,8 +355,10 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
   void _requestOtp() async {
     if (!_isButtonEnabled || _isLoading || !_isTosAccepted) return;
     setState(() => _isLoading = true);
-    final String fullPhoneNumber =
-        _selectedCountry.code + _maskFormatter.getUnmaskedText();
+    final String prefix = _selectedCountry.mask.isEmpty
+        ? _customPrefix
+        : _selectedCountry.code;
+    final String fullPhoneNumber = prefix + _maskFormatter.getUnmaskedText();
     try {
       ApiService.instance.errorStream.listen((error) {
         if (mounted) {
@@ -341,6 +477,39 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
                             selectedCountry: _selectedCountry,
                             countries: _countries,
                             onCountryChanged: _onCountryChanged,
+                            customPrefix: _customPrefix,
+                          ),
+                          const SizedBox(height: 16),
+                          Center(
+                            child: TextButton(
+                              onPressed: _isTosAccepted
+                                  ? () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const RegistrationScreen(),
+                                        ),
+                                      );
+                                    }
+                                  : null,
+                              child: Text(
+                                'зарегистрироваться',
+                                style: GoogleFonts.manrope(
+                                  color: _isTosAccepted
+                                      ? colors.primary
+                                      : colors.onSurfaceVariant.withOpacity(
+                                          0.5,
+                                        ),
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: _isTosAccepted
+                                      ? colors.primary
+                                      : colors.onSurfaceVariant.withOpacity(
+                                          0.5,
+                                        ),
+                                ),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Row(
@@ -517,6 +686,7 @@ class _PhoneInput extends StatelessWidget {
   final Country selectedCountry;
   final List<Country> countries;
   final ValueChanged<Country?> onCountryChanged;
+  final String customPrefix;
 
   const _PhoneInput({
     required this.phoneController,
@@ -524,6 +694,7 @@ class _PhoneInput extends StatelessWidget {
     required this.selectedCountry,
     required this.countries,
     required this.onCountryChanged,
+    required this.customPrefix,
   });
 
   @override
@@ -542,6 +713,7 @@ class _PhoneInput extends StatelessWidget {
           selectedCountry: selectedCountry,
           countries: countries,
           onCountryChanged: onCountryChanged,
+          customPrefix: customPrefix,
         ),
         border: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -556,11 +728,13 @@ class _CountryPicker extends StatelessWidget {
   final Country selectedCountry;
   final List<Country> countries;
   final ValueChanged<Country?> onCountryChanged;
+  final String customPrefix;
 
   const _CountryPicker({
     required this.selectedCountry,
     required this.countries,
     required this.onCountryChanged,
+    required this.customPrefix,
   });
 
   @override
@@ -575,16 +749,40 @@ class _CountryPicker extends StatelessWidget {
           value: selectedCountry,
           onChanged: onCountryChanged,
           icon: Icon(Icons.keyboard_arrow_down, color: colors.onSurfaceVariant),
+          selectedItemBuilder: (BuildContext context) {
+            return countries.map<Widget>((Country country) {
+              final displayText = country.mask.isEmpty
+                  ? (customPrefix.isNotEmpty ? customPrefix : country.name)
+                  : country.code;
+              return Padding(
+                padding: const EdgeInsets.only(left: 8.0, right: 4.0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      displayText,
+                      style: GoogleFonts.manrope(
+                        textStyle: textTheme.titleMedium,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList();
+          },
           items: countries.map((Country country) {
             return DropdownMenuItem<Country>(
               value: country,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(country.flag, style: textTheme.titleMedium),
-                  const SizedBox(width: 8),
+                  if (country.flag.isNotEmpty) ...[
+                    Text(country.flag, style: textTheme.titleMedium),
+                    const SizedBox(width: 8),
+                  ],
                   Text(
-                    country.code,
+                    country.code.isEmpty ? 'Свое' : country.code,
                     style: GoogleFonts.manrope(
                       textStyle: textTheme.titleMedium,
                       fontWeight: FontWeight.w600,

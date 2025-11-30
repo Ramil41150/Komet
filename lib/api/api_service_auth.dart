@@ -255,4 +255,113 @@ extension ApiServiceAuth on ApiService {
       rethrow;
     }
   }
+
+  // Registration methods
+  Future<String> startRegistration(String phoneNumber) async {
+    if (_channel == null) {
+      print('WebSocket не подключен, подключаемся...');
+      try {
+        await connect();
+        await waitUntilOnline();
+      } catch (e) {
+        print('Ошибка подключения к WebSocket: $e');
+        throw Exception('Не удалось подключиться к серверу: $e');
+      }
+    }
+
+    final payload = {
+      "phone": phoneNumber,
+      "type": "START_AUTH",
+      "language": "ru",
+    };
+
+    // Listen for the response
+    final completer = Completer<Map<String, dynamic>>();
+    final subscription = messages.listen((message) {
+      if (message['opcode'] == 17 && !completer.isCompleted) {
+        completer.complete(message);
+      }
+    });
+
+    _sendMessage(17, payload);
+
+    try {
+      final response = await completer.future.timeout(const Duration(seconds: 30));
+      subscription.cancel();
+
+      final payload = response['payload'];
+      if (payload != null && payload['token'] != null) {
+        return payload['token'];
+      } else {
+        throw Exception('No registration token received');
+      }
+    } catch (e) {
+      subscription.cancel();
+      rethrow;
+    }
+  }
+
+  Future<String> verifyRegistrationCode(String token, String code) async {
+    final payload = {
+      'token': token,
+      'verifyCode': code,
+      'authTokenType': 'CHECK_CODE',
+    };
+
+    final completer = Completer<Map<String, dynamic>>();
+    final subscription = messages.listen((message) {
+      if (message['opcode'] == 18 && !completer.isCompleted) {
+        completer.complete(message);
+      }
+    });
+
+    _sendMessage(18, payload);
+
+    try {
+      final response = await completer.future.timeout(const Duration(seconds: 30));
+      subscription.cancel();
+
+      final payload = response['payload'];
+      if (payload != null) {
+        final tokenAttrs = payload['tokenAttrs'];
+        if (tokenAttrs != null && tokenAttrs['REGISTER'] != null) {
+          final regToken = tokenAttrs['REGISTER']['token'];
+          if (regToken != null) {
+            return regToken;
+          }
+        }
+      }
+      throw Exception('Registration token not found in response');
+    } catch (e) {
+      subscription.cancel();
+      rethrow;
+    }
+  }
+
+  Future<void> completeRegistration(String regToken) async {
+    final payload = {
+      "lastName": "User",
+      "token": regToken,
+      "firstName": "Komet",
+      "tokenType": "REGISTER",
+    };
+
+    final completer = Completer<Map<String, dynamic>>();
+    final subscription = messages.listen((message) {
+      if (message['opcode'] == 23 && !completer.isCompleted) {
+        completer.complete(message);
+      }
+    });
+
+    _sendMessage(23, payload);
+
+    try {
+      await completer.future.timeout(const Duration(seconds: 30));
+      subscription.cancel();
+      print('Registration completed successfully');
+    } catch (e) {
+      subscription.cancel();
+      rethrow;
+    }
+  }
 }

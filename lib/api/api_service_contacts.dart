@@ -16,6 +16,12 @@ extension ApiServiceContacts on ApiService {
     _sendMessage(34, {'contactId': contactId, 'action': 'ADD'});
   }
 
+  Future<void> requestContactsByIds(List<int> contactIds) async {
+    await waitUntilOnline();
+    _sendMessage(35, {'contactIds': contactIds});
+    print('Отправлен запрос opcode=35 с contactIds: $contactIds');
+  }
+
   Future<void> subscribeToChat(int chatId, bool subscribe) async {
     await waitUntilOnline();
     _sendMessage(75, {'chatId': chatId, 'subscribe': subscribe});

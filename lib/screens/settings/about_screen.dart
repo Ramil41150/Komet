@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gwid/screens/tos_screen.dart';
+import 'package:gwid/consts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -239,7 +240,7 @@ class AboutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Версия 0.3.0',
+                'Версия $version',
                 style: TextStyle(
                   fontSize: 16,
                   color: colors.onSurface.withOpacity(0.7),

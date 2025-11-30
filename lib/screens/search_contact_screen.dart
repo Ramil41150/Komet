@@ -1,9 +1,8 @@
-
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gwid/api/api_service.dart';
 import 'package:gwid/models/contact.dart';
+import 'package:gwid/screens/chat_screen.dart';
 
 class SearchContactScreen extends StatefulWidget {
   const SearchContactScreen({super.key});
@@ -36,7 +35,6 @@ class _SearchContactScreenState extends State<SearchContactScreen> {
     _apiSubscription = ApiService.instance.messages.listen((message) {
       if (!mounted) return;
 
-
       if (message['type'] == 'contact_found') {
         setState(() {
           _isLoading = false;
@@ -48,21 +46,23 @@ class _SearchContactScreenState extends State<SearchContactScreen> {
 
         if (contactData != null) {
           _foundContact = Contact.fromJson(contactData);
-        }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Контакт найден!'),
-            backgroundColor: Colors.green,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+          // Автоматически открываем чат с найденным контактом
+          _openChatWithContact(_foundContact!);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Контакт найден!'),
+              backgroundColor: Colors.green,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(10),
             ),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(10),
-          ),
-        );
+          );
+        }
       }
-
 
       if (message['type'] == 'contact_not_found') {
         setState(() {
@@ -118,7 +118,6 @@ class _SearchContactScreenState extends State<SearchContactScreen> {
       return;
     }
 
-
     if (!phone.startsWith('+') || phone.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -160,20 +159,146 @@ class _SearchContactScreenState extends State<SearchContactScreen> {
     }
   }
 
+  Future<void> _openChatWithContact(Contact contact) async {
+    try {
+      print(
+        '🔍 Открываем чат с контактом: ${contact.name} (ID: ${contact.id})',
+      );
+
+      // Получаем chatId по contactId
+      final chatId = await ApiService.instance.getChatIdByUserId(contact.id);
+
+      if (chatId == null) {
+        print('⚠️ Чат не найден для контакта ${contact.id}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Не удалось найти чат с этим контактом'),
+            backgroundColor: Colors.orange,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(10),
+          ),
+        );
+        return;
+      }
+
+      print('✅ Найден chatId: $chatId');
+
+      // Подписываемся на чат
+      await ApiService.instance.subscribeToChat(chatId, true);
+      print('✅ Подписались на чат $chatId');
+
+      // Получаем myId из профиля
+      final profileData = ApiService.instance.lastChatsPayload?['profile'];
+      final contactProfile = profileData?['contact'] as Map<String, dynamic>?;
+      final myId = contactProfile?['id'] as int? ?? 0;
+
+      if (myId == 0) {
+        print('⚠️ Не удалось получить myId, используем 0');
+      }
+
+      // Открываем ChatScreen
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              chatId: chatId,
+              contact: contact,
+              myId: myId,
+              isGroupChat: false,
+              isChannel: false,
+              onChatUpdated: () {
+                print('Chat updated');
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Ошибка при открытии чата: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка при открытии чата: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(10),
+          ),
+        );
+      }
+    }
+  }
+
   void _startChat() {
     if (_foundContact != null) {
+      _openChatWithContact(_foundContact!);
+    }
+  }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Создание чата с ${_foundContact!.name}'),
-          backgroundColor: Colors.blue,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+  Future<void> _startChatAlternative() async {
+    if (_foundContact == null) return;
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      print('🔄 Альтернативный способ: добавляем контакт ${_foundContact!.id}');
+
+      // Отправляем opcode=34 с action="ADD"
+      await ApiService.instance.addContact(_foundContact!.id);
+      print('✅ Отправлен opcode=34 с action=ADD');
+
+      // Отправляем opcode=35 с contactIds
+      await ApiService.instance.requestContactsByIds([_foundContact!.id]);
+      print('✅ Отправлен opcode=35 с contactIds=[${_foundContact!.id}]');
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Показываем диалог о необходимости перезайти
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('Перезайти в приложение'),
+            content: const Text(
+              'Для завершения добавления контакта необходимо перезайти в приложение.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Понятно'),
+              ),
+            ],
           ),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(10),
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      print('❌ Ошибка при альтернативном способе: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(10),
+          ),
+        );
+      }
     }
   }
 
@@ -194,7 +319,6 @@ class _SearchContactScreenState extends State<SearchContactScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -229,7 +353,6 @@ class _SearchContactScreenState extends State<SearchContactScreen> {
                 ),
 
                 const SizedBox(height: 24),
-
 
                 Text(
                   'Номер телефона',
@@ -322,7 +445,6 @@ class _SearchContactScreenState extends State<SearchContactScreen> {
                   ),
                 ),
 
-
                 if (_foundContact != null) ...[
                   const SizedBox(height: 24),
                   Container(
@@ -411,11 +533,26 @@ class _SearchContactScreenState extends State<SearchContactScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _startChatAlternative,
+                            icon: const Icon(Icons.alternate_email),
+                            label: const Text(
+                              'Начать чат альтернативным способом',
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
-
 
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 24),

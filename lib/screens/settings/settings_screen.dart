@@ -208,7 +208,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               )
             : null,
       ),
-      body: _buildSettingsContent(),
+      body: SafeArea(
+        child: _buildSettingsContent(),
+      ),
     );
   }
 

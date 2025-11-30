@@ -106,7 +106,9 @@ dependencies:
 
   es_compression: ^2.0.14
 
-  msgpack_dart: ^1.0.1 
+  msgpack_dart: ^1.0.1
+
+  ffi: ^2.1.0
 
   disable_battery_optimization: ^1.1.2
 

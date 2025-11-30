@@ -31,7 +31,6 @@ import 'package:gwid/services/chat_read_settings_service.dart';
 import 'package:gwid/services/local_profile_manager.dart';
 import 'package:gwid/widgets/contact_name_widget.dart';
 import 'package:gwid/widgets/contact_avatar_widget.dart';
-import 'package:gwid/services/contact_local_names_service.dart';
 import 'package:gwid/services/account_manager.dart';
 import 'package:gwid/models/account.dart';
 
@@ -2032,7 +2031,24 @@ class _ChatsScreenState extends State<ChatsScreen>
                                               color: colors.primary,
                                               size: 20,
                                             )
-                                          : null,
+                                          : IconButton(
+                                              icon: Icon(
+                                                Icons.close,
+                                                size: 20,
+                                                color: colors.onSurfaceVariant,
+                                              ),
+                                              onPressed: () {
+                                                _showDeleteAccountDialog(
+                                                  context,
+                                                  account,
+                                                  accountManager,
+                                                  () {
+                                                    // Обновляем список аккаунтов
+                                                    setState(() {});
+                                                  },
+                                                );
+                                              },
+                                            ),
                                       onTap: isCurrent
                                           ? null
                                           : () async {
@@ -3709,6 +3725,57 @@ class _ChatsScreenState extends State<ChatsScreen>
         ).showSnackBar(SnackBar(content: Text('Ошибка при выходе: $e')));
       }
     }
+  }
+  
+   void _showDeleteAccountDialog(
+    BuildContext context,
+    Account account,
+    AccountManager accountManager,
+    VoidCallback onDeleted,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Удаление аккаунта'),
+          content: const Text('Точно хочешь удалить аккаунт?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Нет'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  await accountManager.removeAccount(account.id);
+                  if (mounted) {
+                    onDeleted();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Аккаунт удален'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Ошибка: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Да'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showSearchFilters() {

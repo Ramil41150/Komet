@@ -21,7 +21,7 @@ import 'package:gwid/api/api_service.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:open_file/open_file.dart';
-import 'package:gwid/utils/full_screen_video_player.dart';
+import 'package:gwid/widgets/full_screen_video_player.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:gwid/services/cache_service.dart';
 import 'package:video_player/video_player.dart';
