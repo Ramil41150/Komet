@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gwid/api/api_service.dart';
-import 'theme_provider.dart';
+import 'utils/theme_provider.dart';
 
 class ConnectionLifecycleManager extends StatefulWidget {
   final Widget child;

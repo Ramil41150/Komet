@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:gwid/chats_screen.dart';
-import 'package:gwid/phone_entry_screen.dart';
+import 'package:gwid/screens/chats_screen.dart';
+import 'package:gwid/screens/phone_entry_screen.dart';
 import 'package:gwid/api/api_service.dart';
 import 'package:gwid/screens/settings/reconnection_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,9 +10,9 @@ import 'package:app_links/app_links.dart';
 import 'package:gwid/models/chat.dart';
 import 'package:gwid/models/contact.dart';
 import 'package:gwid/models/profile.dart';
-import 'package:gwid/chat_screen.dart';
+import 'package:gwid/screens/chat_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:gwid/theme_provider.dart';
+import 'package:gwid/utils/theme_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

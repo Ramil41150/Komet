@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:gwid/theme_provider.dart';
+import 'package:gwid/utils/theme_provider.dart';
 import 'package:gwid/screens/settings/customization_screen.dart';
 import 'package:gwid/screens/settings/animations_screen.dart';
 

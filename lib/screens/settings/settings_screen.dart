@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gwid/models/profile.dart';
 import 'package:gwid/api/api_service.dart';
-import 'package:gwid/manage_account_screen.dart';
+import 'package:gwid/screens/manage_account_screen.dart';
 import 'package:gwid/screens/settings/appearance_settings_screen.dart';
 import 'package:gwid/screens/settings/notification_settings_screen.dart';
 import 'package:gwid/screens/settings/privacy_security_screen.dart';
@@ -9,9 +9,9 @@ import 'package:gwid/screens/settings/storage_screen.dart';
 import 'package:gwid/screens/settings/network_settings_screen.dart';
 import 'package:gwid/screens/settings/bypass_screen.dart';
 import 'package:gwid/screens/settings/about_screen.dart';
-import 'package:gwid/debug_screen.dart';
+import 'package:gwid/screens/debug_screen.dart';
 import 'package:gwid/screens/settings/komet_misc_screen.dart';
-import 'package:gwid/theme_provider.dart';
+import 'package:gwid/utils/theme_provider.dart';
 import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {

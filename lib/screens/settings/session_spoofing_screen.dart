@@ -8,7 +8,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gwid/api/api_service.dart';
 import 'package:uuid/uuid.dart';
-import 'package:gwid/device_presets.dart';
+import 'package:gwid/utils/device_presets.dart';
 
 enum SpoofingMethod { partial, full }
 

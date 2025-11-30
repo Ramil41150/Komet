@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:gwid/theme_provider.dart';
+import 'package:gwid/utils/theme_provider.dart';
 import 'dart:io';
 import 'dart:ui';
 import 'package:gwid/models/message.dart';

@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gwid/api/api_service.dart';
-import 'package:gwid/otp_screen.dart';
-import 'package:gwid/proxy_service.dart';
+import 'package:gwid/screens/otp_screen.dart';
+import 'package:gwid/utils/proxy_service.dart';
 import 'package:gwid/screens/settings/auth_settings_screen.dart';
-import 'package:gwid/token_auth_screen.dart';
-import 'package:gwid/tos_screen.dart'; // Импорт экрана ToS
+import 'package:gwid/screens/token_auth_screen.dart';
+import 'package:gwid/screens/tos_screen.dart'; // Импорт экрана ToS
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';

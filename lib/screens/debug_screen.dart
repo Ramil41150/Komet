@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:gwid/cache_management_screen.dart'; // Добавлен импорт
+import 'package:gwid/screens/cache_management_screen.dart'; // Добавлен импорт
 import 'package:provider/provider.dart';
-import 'package:gwid/theme_provider.dart';
+import 'package:gwid/utils/theme_provider.dart';
 import 'package:gwid/api/api_service.dart';
-import 'package:gwid/phone_entry_screen.dart';
-import 'package:gwid/custom_request_screen.dart';
+import 'package:gwid/screens/phone_entry_screen.dart';
+import 'package:gwid/screens/custom_request_screen.dart';
 import 'dart:async';
 
 class DebugScreen extends StatelessWidget {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gwid/proxy_service.dart';
-import 'package:gwid/proxy_settings.dart';
+import 'package:gwid/utils/proxy_service.dart';
+import 'package:gwid/utils/proxy_settings.dart';
 
 class ProxySettingsScreen extends StatefulWidget {
   const ProxySettingsScreen({super.key});

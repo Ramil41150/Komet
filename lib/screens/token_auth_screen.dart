@@ -11,9 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 import 'package:gwid/api/api_service.dart';
-import 'package:gwid/home_screen.dart';
-import 'package:gwid/proxy_service.dart';
-import 'package:gwid/proxy_settings.dart';
+import 'package:gwid/screens/home_screen.dart';
+import 'package:gwid/utils/proxy_service.dart';
+import 'package:gwid/utils/proxy_settings.dart';
 import 'package:gwid/screens/settings/qr_scanner_screen.dart';
 import 'package:gwid/screens/settings/session_spoofing_screen.dart';
 

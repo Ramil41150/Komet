@@ -1,11 +1,11 @@
 
 import 'package:flutter/material.dart';
-import 'package:gwid/manage_account_screen.dart';
+import 'package:gwid/screens/manage_account_screen.dart';
 import 'package:gwid/models/profile.dart';
 import 'package:gwid/screens/settings/settings_screen.dart';
-import 'package:gwid/phone_entry_screen.dart';
+import 'package:gwid/screens/phone_entry_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:gwid/theme_provider.dart';
+import 'package:gwid/utils/theme_provider.dart';
 
 class ProfileMenuDialog extends StatefulWidget {
   final Profile? myProfile;

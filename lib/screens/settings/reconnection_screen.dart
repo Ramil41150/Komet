@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gwid/api/api_service.dart';
-import 'package:gwid/home_screen.dart';
+import 'package:gwid/screens/home_screen.dart';
 
 class ReconnectionScreen extends StatefulWidget {
   const ReconnectionScreen({super.key});

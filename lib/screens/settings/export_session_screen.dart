@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gwid/api/api_service.dart';
-import 'package:gwid/proxy_service.dart';
-import 'package:gwid/spoofing_service.dart';
+import 'package:gwid/utils/proxy_service.dart';
+import 'package:gwid/utils/spoofing_service.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:crypto/crypto.dart' as crypto;
 

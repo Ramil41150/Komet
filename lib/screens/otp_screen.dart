@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:pinput/pinput.dart';
 import 'package:gwid/api/api_service.dart';
-import 'package:gwid/chats_screen.dart';
-import 'package:gwid/password_auth_screen.dart';
+import 'package:gwid/screens/chats_screen.dart';
+import 'package:gwid/screens/password_auth_screen.dart';
 
 class OTPScreen extends StatefulWidget {
   final String phoneNumber;

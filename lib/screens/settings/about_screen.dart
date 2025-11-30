@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:gwid/tos_screen.dart';
+import 'package:gwid/screens/tos_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatelessWidget {

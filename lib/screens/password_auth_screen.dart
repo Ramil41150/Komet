@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gwid/api/api_service.dart';
-import 'package:gwid/chats_screen.dart';
+import 'package:gwid/screens/chats_screen.dart';
 
 class PasswordAuthScreen extends StatefulWidget {
   const PasswordAuthScreen({super.key});

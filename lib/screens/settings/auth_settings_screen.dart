@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:gwid/proxy_service.dart';
+import 'package:gwid/utils/proxy_service.dart';
 import 'package:gwid/screens/settings/proxy_settings_screen.dart';
 import 'package:gwid/screens/settings/session_spoofing_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
