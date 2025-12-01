@@ -190,6 +190,69 @@ extension ApiServiceChats on ApiService {
     print('Переименовываем группу $chatId в: $newName');
   }
 
+  /// Создает/перегенерирует пригласительную ссылку для группы.
+  /// Сервер ожидает payload вида:
+  /// {"chatId": -69330645868731, "revokePrivateLink": true}
+  /// В ответ приходит объект с обновленным chat, где есть поле "link".
+  Future<String?> createGroupInviteLink(
+    int chatId, {
+    bool revokePrivateLink = true,
+  }) async {
+    final payload = {
+      "chatId": chatId,
+      "revokePrivateLink": revokePrivateLink,
+    };
+
+    print('Создаем пригласительную ссылку для группы $chatId: $payload');
+
+    final int seq = _sendMessage(55, payload);
+
+    try {
+      final response = await messages
+          .firstWhere((msg) => msg['seq'] == seq)
+          .timeout(const Duration(seconds: 15));
+
+      if (response['cmd'] == 3) {
+        final error = response['payload'];
+        print('Ошибка создания пригласительной ссылки: $error');
+        final message =
+            error?['localizedMessage'] ?? error?['message'] ?? 'Неизвестная ошибка';
+        throw Exception(message);
+      }
+
+      final chat = response['payload']?['chat'];
+      final link = chat?['link'] as String?;
+      if (link == null || link.isEmpty) {
+        print(
+          'Пригласительная ссылка не найдена в ответе: ${response['payload']}',
+        );
+        return null;
+      }
+
+      // Обновим кэш чатов, если сервер вернул полный объект чата
+      try {
+        if (chat != null) {
+          final chats = _lastChatsPayload?['chats'] as List<dynamic>?;
+          if (chats != null) {
+            final index = chats.indexWhere(
+              (c) => c is Map && c['id'] == chat['id'],
+            );
+            if (index >= 0) {
+              chats[index] = chat;
+            }
+          }
+        }
+      } catch (e) {
+        print('Не удалось обновить кэш чатов после создания ссылки: $e');
+      }
+
+      return link;
+    } catch (e) {
+      print('Ошибка при создании пригласительной ссылки: $e');
+      rethrow;
+    }
+  }
+
   void addGroupMember(
     int chatId,
     List<int> userIds, {

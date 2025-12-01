@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:es_compression/lz4.dart';
 import 'package:ffi/ffi.dart';
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 
@@ -29,7 +28,9 @@ class RegistrationService {
   bool _isConnected = false;
   Timer? _pingTimer;
   StreamSubscription? _socketSubscription;
-  Lz4Codec? _lz4Codec;
+  // LZ4 через es_compression/FFI сейчас не работает на Windows из‑за отсутствия
+  // eslz4-win64.dll, поэтому ниже реализован свой чистый декодер LZ4 block.
+  // Поля для LZ4 через FFI оставлены на будущее, если появится корректная DLL.
   DynamicLibrary? _lz4Lib;
   Lz4Decompress? _lz4BlockDecompress;
 
@@ -315,19 +316,193 @@ class RegistrationService {
   dynamic _deserializeMsgpack(Uint8List data) {
     print('📦 Десериализация msgpack...');
     try {
-      final payload = msgpack.deserialize(data);
+      dynamic payload = msgpack.deserialize(data);
       print('✅ Msgpack десериализация успешна');
 
-      // Проверяем, что получили валидный результат (не просто число)
-      if (payload is int && payload < 0) {
-        print(
-          '⚠️  Получено отрицательное число вместо Map - возможно данные все еще сжаты',
-        );
-        return null;
+      // Иногда сервер шлёт FFI‑токены в виде "отрицательное число + настоящий объект"
+      // в одном msgpack‑буфере. msgpack_dart в таком случае возвращает только первое
+      // значение (например, -16 или -13), а остальное игнорирует.
+      //
+      // Паттерны из логов:
+      //  - F0 56 84 ... → -16 и дальше полноценная map
+      //  - F3 A7 85 ... → -13 и дальше полноценная map
+      //
+      // Если мы увидели отрицательный fixint и в буфере есть ещё данные,
+      // пробуем повторно распарсить "хвост" как настоящий payload.
+      if (payload is int && data.length > 1 && payload <= -1 && payload >= -32) {
+        final marker = data[0];
+
+        // Для разных FFI‑токенов offset до реального msgpack может отличаться.
+        // Вместо жёсткой привязки пробуем несколько вариантов подряд.
+        final candidateOffsets = <int>[1, 2, 3, 4];
+
+        // Сохраним сюда первый успешно распарсенный payload.
+        dynamic recovered;
+
+        for (final offset in candidateOffsets) {
+          if (offset >= data.length) continue;
+
+          try {
+            print(
+              '📦 Обнаружен FFI‑токен $payload (marker=0x${marker.toRadixString(16)}), '
+              'пробуем msgpack c offset=$offset...',
+            );
+            final tail = data.sublist(offset);
+            final realPayload = msgpack.deserialize(tail);
+            print('✅ Удалось распарсить payload после FFI‑токена с offset=$offset');
+            recovered = realPayload;
+            break;
+          } catch (e) {
+            print(
+              '⚠️  Попытка распарсить хвост msgpack (offset=$offset) не удалась: $e',
+            );
+          }
+        }
+
+        if (recovered != null) {
+          payload = recovered;
+        } else {
+          print(
+            '⚠️  Не удалось восстановить payload после FFI‑токена, '
+            'оставляем исходное значение ($payload).',
+          );
+        }
       }
-      return payload;
+
+      // После базовой (и возможной повторной) десериализации дополнительно
+      // разбираем "block"-объекты — структуры с lz4‑сжатыми данными.
+      final decoded = _decodeBlockTokens(payload);
+      return decoded;
     } catch (e) {
       print('❌ Ошибка десериализации msgpack: $e');
+      return null;
+    }
+  }
+
+  /// Рекурсивно обходит структуру ответа и декодирует блоки вида:
+  /// {"type": "block", "data": <bytes>, "uncompressed_size": N}
+  /// Такие блоки используются FFI для передачи lz4‑сжатых кусков данных.
+  dynamic _decodeBlockTokens(dynamic value) {
+    if (value is Map) {
+      // Пытаемся декодировать саму map как block‑токен
+      final maybeDecoded = _tryDecodeSingleBlock(value);
+      if (maybeDecoded != null) {
+        return maybeDecoded;
+      }
+
+      // Если это обычная map — обходим все поля рекурсивно
+      final result = <dynamic, dynamic>{};
+      value.forEach((k, v) {
+        result[k] = _decodeBlockTokens(v);
+      });
+      return result;
+    } else if (value is List) {
+      return value.map(_decodeBlockTokens).toList();
+    }
+
+    return value;
+  }
+
+  /// Пробует интерпретировать map как блок вида "block".
+  /// Если структура не похожа на блок, возвращает null.
+  dynamic _tryDecodeSingleBlock(Map value) {
+    try {
+      if (value['type'] != 'block') {
+        return null;
+      }
+
+      final rawData = value['data'];
+      if (rawData is! List && rawData is! Uint8List) {
+        return null;
+      }
+
+      // Пробуем вытащить ожидаемый размер распакованных данных.
+      // Название поля может отличаться, поэтому проверяем несколько вариантов.
+      final uncompressedSize = (value['uncompressed_size'] ??
+              value['uncompressedSize'] ??
+              value['size']) as int?;
+
+      Uint8List compressedBytes = rawData is Uint8List
+          ? rawData
+          : Uint8List.fromList(List<int>.from(rawData as List));
+
+      // Если FFI‑функция доступна — используем её (LZ4_decompress_safe).
+      if (_lz4BlockDecompress != null && uncompressedSize != null) {
+        print(
+          '📦 Декодируем block‑токен через LZ4 FFI: '
+          'compressed=${compressedBytes.length}, uncompressed=$uncompressedSize',
+        );
+
+        if (uncompressedSize <= 0 || uncompressedSize > 10 * 1024 * 1024) {
+          print(
+            '⚠️  Некорректный uncompressed_size=$uncompressedSize, '
+            'пропускаем FFI‑декомпрессию для этого блока',
+          );
+          return null;
+        }
+
+        final srcSize = compressedBytes.length;
+        final srcPtr = malloc.allocate<Uint8>(srcSize);
+        final dstPtr = malloc.allocate<Uint8>(uncompressedSize);
+
+        try {
+          final srcList = srcPtr.asTypedList(srcSize);
+          srcList.setAll(0, compressedBytes);
+
+          final result = _lz4BlockDecompress!(
+            srcPtr,
+            dstPtr,
+            srcSize,
+            uncompressedSize,
+          );
+
+          if (result <= 0) {
+            print('❌ LZ4_decompress_safe вернула код ошибки: $result');
+            return null;
+          }
+
+          final actualSize = result;
+          final dstList = dstPtr.asTypedList(actualSize);
+          final decompressed = Uint8List.fromList(dstList);
+
+          print(
+            '✅ block‑токен успешно декомпрессирован: '
+            '$srcSize → ${decompressed.length} байт',
+          );
+
+          // Пытаемся интерпретировать результат как msgpack — многие блоки
+          // содержат внутри ещё один msgpack‑объект.
+          final nested = _deserializeMsgpack(decompressed);
+          if (nested != null) {
+            return nested;
+          }
+
+          // Если это не msgpack — вернём просто байты, вызывающий код сам решит,
+          // что с ними делать.
+          return decompressed;
+        } finally {
+          malloc.free(srcPtr);
+          malloc.free(dstPtr);
+        }
+      }
+
+      // FFI недоступен — пробуем наш чистый Dart‑декодер LZ4 block.
+      try {
+        final decompressed =
+            _lz4DecompressBlockPure(compressedBytes, 500000 /* max */);
+        print(
+          '✅ block‑токен декомпрессирован через чистый LZ4 block: '
+          '${compressedBytes.length} → ${decompressed.length} байт',
+        );
+
+        final nested = _deserializeMsgpack(decompressed);
+        return nested ?? decompressed;
+      } catch (e) {
+        print('⚠️  Не удалось декомпрессировать block‑токен через чистый LZ4: $e');
+        return null;
+      }
+    } catch (e) {
+      print('⚠️  Ошибка при разборе block‑токена: $e');
       return null;
     }
   }
@@ -342,193 +517,22 @@ class RegistrationService {
     }
 
     try {
-      // Сначала пробуем LZ4 декомпрессию как в register.py
+      // Сначала пробуем LZ4 block‑декомпрессию так же, как делает register.py
+      // (lz4.block.decompress(payload_bytes, uncompressed_size=99999)).
       Uint8List decompressedBytes = payloadBytes;
 
-      // Если данные сжаты (compFlag != 0), пробуем LZ4 block декомпрессию
-      if (isCompressed && payloadBytes.length > 4) {
-        print('📦 Данные помечены как сжатые (compFlag != 0)');
-
-        // Пробуем LZ4 block декомпрессию через FFI (как в register.py)
-        try {
-          if (_lz4BlockDecompress != null) {
-            print('📦 Попытка LZ4 block декомпрессии через FFI...');
-
-            // В register.py используется фиксированный uncompressed_size=99999
-            // И данные используются полностью (без пропуска первых 4 байт)
-            // Но в packet_framer.dart при compFlag пропускаются первые 4 байта
-            // Попробуем оба варианта
-
-            // Вариант 1: как в register.py - используем все данные с фиксированным размером
-            // Увеличиваем размер для больших ответов (как в register.py используется 99999, но может быть недостаточно)
-            int uncompressedSize =
-                500000; // Увеличенный размер для больших ответов
-            Uint8List compressedData = payloadBytes;
-
-            print(
-              '📦 Попытка 1: Используем все данные с uncompressed_size=99999 (как в register.py)',
-            );
-            try {
-              if (uncompressedSize > 0 && uncompressedSize < 10 * 1024 * 1024) {
-                final srcSize = compressedData.length;
-                final srcPtr = malloc.allocate<Uint8>(srcSize);
-                final dstPtr = malloc.allocate<Uint8>(uncompressedSize);
-
-                try {
-                  final srcList = srcPtr.asTypedList(srcSize);
-                  srcList.setAll(0, compressedData);
-
-                  final result = _lz4BlockDecompress!(
-                    srcPtr,
-                    dstPtr,
-                    srcSize,
-                    uncompressedSize,
-                  );
-
-                  if (result > 0) {
-                    final actualSize = result;
-                    final dstList = dstPtr.asTypedList(actualSize);
-                    decompressedBytes = Uint8List.fromList(dstList);
-                    print(
-                      '✅ LZ4 block декомпрессия успешна: $srcSize → ${decompressedBytes.length} байт',
-                    );
-                    print(
-                      '📦 Декомпрессированные данные (hex, первые 64 байта):',
-                    );
-                    final preview = decompressedBytes.length > 64
-                        ? decompressedBytes.sublist(0, 64)
-                        : decompressedBytes;
-                    print(_bytesToHex(preview));
-                    // Успешная декомпрессия - возвращаем результат
-                    return _deserializeMsgpack(decompressedBytes);
-                  } else {
-                    throw Exception('LZ4 декомпрессия вернула ошибку: $result');
-                  }
-                } finally {
-                  malloc.free(srcPtr);
-                  malloc.free(dstPtr);
-                }
-              }
-            } catch (e1) {
-              print('⚠️  Вариант 1 не сработал: $e1');
-
-              // Вариант 2: пропускаем первые 4 байта (как в packet_framer.dart)
-              if (payloadBytes.length > 4) {
-                print('📦 Попытка 2: Пропускаем первые 4 байта...');
-                compressedData = payloadBytes.sublist(4);
-                print('📦 Сжатые данные (hex, первые 32 байта):');
-                final firstBytes = compressedData.length > 32
-                    ? compressedData.sublist(0, 32)
-                    : compressedData;
-                print(_bytesToHex(firstBytes));
-
-                try {
-                  final srcSize = compressedData.length;
-                  final srcPtr = malloc.allocate<Uint8>(srcSize);
-                  final dstPtr = malloc.allocate<Uint8>(uncompressedSize);
-
-                  try {
-                    final srcList = srcPtr.asTypedList(srcSize);
-                    srcList.setAll(0, compressedData);
-
-                    final result = _lz4BlockDecompress!(
-                      srcPtr,
-                      dstPtr,
-                      srcSize,
-                      uncompressedSize,
-                    );
-
-                    if (result > 0) {
-                      final actualSize = result;
-                      final dstList = dstPtr.asTypedList(actualSize);
-                      decompressedBytes = Uint8List.fromList(dstList);
-                      print(
-                        '✅ LZ4 block декомпрессия успешна (вариант 2): $srcSize → ${decompressedBytes.length} байт',
-                      );
-                      print(
-                        '📦 Декомпрессированные данные (hex, первые 64 байта):',
-                      );
-                      final preview = decompressedBytes.length > 64
-                          ? decompressedBytes.sublist(0, 64)
-                          : decompressedBytes;
-                      print(_bytesToHex(preview));
-                      // Успешная декомпрессия - возвращаем результат
-                      return _deserializeMsgpack(decompressedBytes);
-                    } else {
-                      throw Exception(
-                        'LZ4 декомпрессия вернула ошибку: $result',
-                      );
-                    }
-                  } finally {
-                    malloc.free(srcPtr);
-                    malloc.free(dstPtr);
-                  }
-                } catch (e2) {
-                  print('⚠️  Вариант 2 не сработал: $e2');
-                  throw e2; // Пробрасываем ошибку дальше
-                }
-              } else {
-                throw e1;
-              }
-            }
-          } else {
-            // Пробуем через es_compression (frame format)
-            final compressedData = payloadBytes.sublist(4);
-            if (_lz4Codec == null) {
-              print('📦 Инициализация Lz4Codec (frame format)...');
-              _lz4Codec = Lz4Codec();
-              print('✅ Lz4Codec инициализирован успешно');
-            }
-
-            print('📦 Попытка декомпрессии через es_compression...');
-            final decoded = _lz4Codec!.decode(compressedData);
-            decompressedBytes = decoded is Uint8List
-                ? decoded
-                : Uint8List.fromList(decoded);
-            print(
-              '✅ LZ4 декомпрессия успешна: ${compressedData.length} → ${decompressedBytes.length} байт',
-            );
-          }
-        } catch (lz4Error) {
-          print('⚠️  LZ4 декомпрессия не применена: $lz4Error');
-          print('📦 Тип ошибки: ${lz4Error.runtimeType}');
-          print('📦 Используем сырые данные...');
-          decompressedBytes = payloadBytes;
-        }
-      } else {
-        // Данные не сжаты или нет флага - пробуем LZ4 на всякий случай (как в register.py)
+      try {
+        print('📦 Пробуем LZ4 block‑декомпрессию (чистый Dart)...');
+        decompressedBytes = _lz4DecompressBlockPure(payloadBytes, 500000);
         print(
-          '📦 Данные не помечены как сжатые, но пробуем LZ4 (как в register.py)...',
+          '✅ LZ4 block‑декомпрессия успешна: '
+          '${payloadBytes.length} → ${decompressedBytes.length} байт',
         );
-        final firstBytes = payloadBytes.length > 32
-            ? payloadBytes.sublist(0, 32)
-            : payloadBytes;
-        print(
-          '📦 Первые ${firstBytes.length} байта payload (hex): ${_bytesToHex(firstBytes)}',
-        );
-
-        try {
-          if (_lz4Codec == null) {
-            print('📦 Инициализация Lz4Codec...');
-            _lz4Codec = Lz4Codec();
-            print('✅ Lz4Codec инициализирован успешно');
-          }
-
-          print('📦 Попытка декомпрессии ${payloadBytes.length} байт...');
-          final decoded = _lz4Codec!.decode(payloadBytes);
-          decompressedBytes = decoded is Uint8List
-              ? decoded
-              : Uint8List.fromList(decoded);
-          print(
-            '✅ LZ4 декомпрессия успешна: ${payloadBytes.length} → ${decompressedBytes.length} байт',
-          );
-        } catch (lz4Error) {
-          // Если LZ4 не удалась (данные не сжаты), используем сырые данные
-          print(
-            '⚠️  LZ4 декомпрессия не применена (данные не сжаты): $lz4Error',
-          );
-          decompressedBytes = payloadBytes;
-        }
+      } catch (lz4Error) {
+        // Как и в Python‑скрипте: если lz4 не сработал, просто используем сырые байты.
+        print('⚠️  LZ4 block‑декомпрессия не применена: $lz4Error');
+        print('📦 Используем сырые данные без распаковки...');
+        decompressedBytes = payloadBytes;
       }
 
       return _deserializeMsgpack(decompressedBytes);
@@ -537,6 +541,90 @@ class RegistrationService {
       print('Stack trace: ${StackTrace.current}');
       return null;
     }
+  }
+
+  /// Простейшая реализация LZ4 block‑декомпрессии на Dart.
+  /// Поддерживает стандартный формат блоков без фрейм‑заголовка.
+  /// Используется как аналог lz4.block.decompress из Python‑скрипта.
+  Uint8List _lz4DecompressBlockPure(Uint8List src, int maxOutputSize) {
+    // Алгоритм основан на официальной спецификации LZ4.
+    final dst = BytesBuilder(copy: false);
+    int srcPos = 0;
+
+    while (srcPos < src.length) {
+      if (srcPos >= src.length) break;
+      final token = src[srcPos++];
+      var literalLen = token >> 4;
+
+      // Дополнительная длина литералов
+      if (literalLen == 15) {
+        while (srcPos < src.length) {
+          final b = src[srcPos++];
+          literalLen += b;
+          if (b != 255) break;
+        }
+      }
+
+      // Копируем литералы
+      if (literalLen > 0) {
+        if (srcPos + literalLen > src.length) {
+          throw StateError('LZ4: literal length выходит за пределы входного буфера');
+        }
+        final literals = src.sublist(srcPos, srcPos + literalLen);
+        srcPos += literalLen;
+        dst.add(literals);
+        if (dst.length > maxOutputSize) {
+          throw StateError('LZ4: превышен максимально допустимый размер вывода');
+        }
+      }
+
+      // Конец блока — нет места даже на offset
+      if (srcPos >= src.length) {
+        break;
+      }
+
+      // Читаем offset
+      if (srcPos + 1 >= src.length) {
+        throw StateError('LZ4: неполный offset в потоке');
+      }
+      final offset = src[srcPos] | (src[srcPos + 1] << 8);
+      srcPos += 2;
+
+      if (offset == 0) {
+        throw StateError('LZ4: offset не может быть 0');
+      }
+
+      var matchLen = (token & 0x0F) + 4;
+
+      // Дополнительная длина match‑а
+      if ((token & 0x0F) == 0x0F) {
+        while (srcPos < src.length) {
+          final b = src[srcPos++];
+          matchLen += b;
+          if (b != 255) break;
+        }
+      }
+
+      // Копируем match из уже записанных данных
+      final dstBytes = dst.toBytes();
+      final dstLen = dstBytes.length;
+      final matchPos = dstLen - offset;
+      if (matchPos < 0) {
+        throw StateError('LZ4: match указывает за пределы уже декодированных данных');
+      }
+
+      final match = <int>[];
+      for (int i = 0; i < matchLen; i++) {
+        match.add(dstBytes[matchPos + (i % offset)]);
+      }
+      dst.add(Uint8List.fromList(match));
+
+      if (dst.length > maxOutputSize) {
+        throw StateError('LZ4: превышен максимально допустимый размер вывода');
+      }
+    }
+
+    return Uint8List.fromList(dst.toBytes());
   }
 
   Future<dynamic> _sendMessage(int opcode, Map<String, dynamic> payload) async {

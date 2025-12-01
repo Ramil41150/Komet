@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gwid/api/api_service.dart';
+import 'package:flutter/services.dart';
 import 'package:gwid/models/contact.dart';
 import 'package:gwid/services/avatar_cache_service.dart';
 import 'package:gwid/widgets/user_profile_panel.dart';
@@ -531,6 +532,45 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                     ),
                   );
                 }
+
+  Future<void> _createInviteLink() async {
+    try {
+      final link = await ApiService.instance.createGroupInviteLink(
+        widget.chatId,
+        revokePrivateLink: true,
+      );
+
+      if (!mounted) return;
+
+      if (link == null || link.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось получить пригласительную ссылку'),
+          ),
+        );
+        return;
+      }
+
+      await Clipboard.setData(ClipboardData(text: link));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ссылка скопирована: $link'),
+          action: SnackBarAction(
+            label: 'OK',
+            onPressed: () {},
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка при создании ссылки: $e'),
+            ),
+          );
+        }
+  }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -551,6 +591,45 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _createInviteLink() async {
+    try {
+      final link = await ApiService.instance.createGroupInviteLink(
+        widget.chatId,
+        revokePrivateLink: true,
+      );
+
+      if (!mounted) return;
+
+      if (link == null || link.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось получить пригласительную ссылку'),
+          ),
+        );
+        return;
+      }
+
+      await Clipboard.setData(ClipboardData(text: link));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ссылка скопирована: $link'),
+          action: SnackBarAction(
+            label: 'OK',
+            onPressed: () {},
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка при создании ссылки: $e'),
+        ),
+      );
+    }
   }
 
   @override
@@ -732,6 +811,18 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                 icon: const Icon(Icons.admin_panel_settings),
                 label: const Text('Назначить администратором'),
                 style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _createInviteLink,
+                icon: const Icon(Icons.link),
+                label: const Text('Создать пригласительную ссылку'),
+                style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
