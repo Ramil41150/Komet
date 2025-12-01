@@ -38,6 +38,8 @@ android {
         }
     }
 
+    // keystore properties теперь лежат в android/key.properties
+    // rootProject указывает на каталог android/, поэтому путь должен быть именно "key.properties"
     val keyPropertiesFile = rootProject.file("key.properties")
     val keyProperties = Properties()
     

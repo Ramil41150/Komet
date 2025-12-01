@@ -869,6 +869,46 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _scrollToPinnedMessage() {
+    final pinned = _pinnedMessage;
+    if (pinned == null) return;
+
+    // Находим индекс элемента в _chatItems, который соответствует закрепленному сообщению
+    int? targetChatItemIndex;
+    for (int i = 0; i < _chatItems.length; i++) {
+      final item = _chatItems[i];
+      if (item is MessageItem) {
+        final msg = item.message;
+        if (msg.id == pinned.id ||
+            (msg.cid != null && pinned.cid != null && msg.cid == pinned.cid)) {
+          targetChatItemIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (targetChatItemIndex == null) {
+      // Сообщение может быть вне загруженной истории
+      return;
+    }
+
+    if (!_itemScrollController.isAttached) return;
+
+    // ScrollablePositionedList используется с reverse:true,
+    // поэтому визуальный индекс считается от конца списка
+    final visualIndex = _chatItems.length - 1 - targetChatItemIndex;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_itemScrollController.isAttached) {
+        _itemScrollController.scrollTo(
+          index: visualIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
+  }
+
   void _addMessage(Message message, {bool forceScroll = false}) {
     if (_messages.any((m) => m.id == message.id)) {
       print('Сообщение ${message.id} уже существует, пропускаем добавление');
@@ -2078,18 +2118,19 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: _pinnedMessage != null
                     ? SafeArea(
                         key: ValueKey(_pinnedMessage!.id),
-                        child: PinnedMessageWidget(
-                          pinnedMessage: _pinnedMessage!,
-                          contacts: _contactDetailsCache,
-                          myId: _actualMyId ?? 0,
-                          onTap: () {
-                            // TODO: Прокрутить к закрепленному сообщению
-                          },
-                          onClose: () {
-                            setState(() {
-                              _pinnedMessage = null;
-                            });
-                          },
+                        child: InkWell(
+                          onTap: _scrollToPinnedMessage,
+                          child: PinnedMessageWidget(
+                            pinnedMessage: _pinnedMessage!,
+                            contacts: _contactDetailsCache,
+                            myId: _actualMyId ?? 0,
+                            onTap: _scrollToPinnedMessage,
+                            onClose: () {
+                              setState(() {
+                                _pinnedMessage = null;
+                              });
+                            },
+                          ),
                         ),
                       )
                     : const SizedBox.shrink(key: ValueKey('empty')),
