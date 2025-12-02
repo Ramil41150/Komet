@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
+import 'package:uuid/uuid.dart';
 
 // FFI типы для LZ4 block decompress
 typedef Lz4DecompressFunction =
@@ -26,6 +28,8 @@ class RegistrationService {
   int _seq = 0;
   final Map<int, Completer<dynamic>> _pending = {};
   bool _isConnected = false;
+  final _random = Random();
+  final _uuid = const Uuid();
   Timer? _pingTimer;
   StreamSubscription? _socketSubscription;
   // LZ4 через es_compression/FFI сейчас не работает на Windows из‑за отсутствия
@@ -329,7 +333,10 @@ class RegistrationService {
       //
       // Если мы увидели отрицательный fixint и в буфере есть ещё данные,
       // пробуем повторно распарсить "хвост" как настоящий payload.
-      if (payload is int && data.length > 1 && payload <= -1 && payload >= -32) {
+      if (payload is int &&
+          data.length > 1 &&
+          payload <= -1 &&
+          payload >= -32) {
         final marker = data[0];
 
         // Для разных FFI‑токенов offset до реального msgpack может отличаться.
@@ -349,7 +356,9 @@ class RegistrationService {
             );
             final tail = data.sublist(offset);
             final realPayload = msgpack.deserialize(tail);
-            print('✅ Удалось распарсить payload после FFI‑токена с offset=$offset');
+            print(
+              '✅ Удалось распарсить payload после FFI‑токена с offset=$offset',
+            );
             recovered = realPayload;
             break;
           } catch (e) {
@@ -418,9 +427,11 @@ class RegistrationService {
 
       // Пробуем вытащить ожидаемый размер распакованных данных.
       // Название поля может отличаться, поэтому проверяем несколько вариантов.
-      final uncompressedSize = (value['uncompressed_size'] ??
-              value['uncompressedSize'] ??
-              value['size']) as int?;
+      final uncompressedSize =
+          (value['uncompressed_size'] ??
+                  value['uncompressedSize'] ??
+                  value['size'])
+              as int?;
 
       Uint8List compressedBytes = rawData is Uint8List
           ? rawData
@@ -488,8 +499,10 @@ class RegistrationService {
 
       // FFI недоступен — пробуем наш чистый Dart‑декодер LZ4 block.
       try {
-        final decompressed =
-            _lz4DecompressBlockPure(compressedBytes, 500000 /* max */);
+        final decompressed = _lz4DecompressBlockPure(
+          compressedBytes,
+          500000 /* max */,
+        );
         print(
           '✅ block‑токен декомпрессирован через чистый LZ4 block: '
           '${compressedBytes.length} → ${decompressed.length} байт',
@@ -498,7 +511,9 @@ class RegistrationService {
         final nested = _deserializeMsgpack(decompressed);
         return nested ?? decompressed;
       } catch (e) {
-        print('⚠️  Не удалось декомпрессировать block‑токен через чистый LZ4: $e');
+        print(
+          '⚠️  Не удалось декомпрессировать block‑токен через чистый LZ4: $e',
+        );
         return null;
       }
     } catch (e) {
@@ -568,13 +583,17 @@ class RegistrationService {
       // Копируем литералы
       if (literalLen > 0) {
         if (srcPos + literalLen > src.length) {
-          throw StateError('LZ4: literal length выходит за пределы входного буфера');
+          throw StateError(
+            'LZ4: literal length выходит за пределы входного буфера',
+          );
         }
         final literals = src.sublist(srcPos, srcPos + literalLen);
         srcPos += literalLen;
         dst.add(literals);
         if (dst.length > maxOutputSize) {
-          throw StateError('LZ4: превышен максимально допустимый размер вывода');
+          throw StateError(
+            'LZ4: превышен максимально допустимый размер вывода',
+          );
         }
       }
 
@@ -610,7 +629,9 @@ class RegistrationService {
       final dstLen = dstBytes.length;
       final matchPos = dstLen - offset;
       if (matchPos < 0) {
-        throw StateError('LZ4: match указывает за пределы уже декодированных данных');
+        throw StateError(
+          'LZ4: match указывает за пределы уже декодированных данных',
+        );
       }
 
       final match = <int>[];
@@ -650,9 +671,30 @@ class RegistrationService {
   Future<String> startRegistration(String phoneNumber) async {
     await connect();
 
+    // Генерируем случайные идентификаторы и данные устройства
+    final mtInstanceId = _uuid.v4();
+    final deviceId = _uuid.v4();
+    final possibleDeviceNames = <String>[
+      'Samsung Galaxy S23',
+      'Samsung Galaxy S22',
+      'Xiaomi 13 Pro',
+      'Xiaomi Redmi Note 12',
+      'Google Pixel 8 Pro',
+      'Google Pixel 7',
+      'OnePlus 11',
+      'Nothing Phone (2)',
+      'POCO F5',
+      'realme GT Neo 5',
+      'Tecno Pova 2',
+      'Iphone 15 legacy PRO',
+      'KometPhone 3 pro',
+    ];
+    final deviceName =
+        possibleDeviceNames[_random.nextInt(possibleDeviceNames.length)];
+
     // Отправляем handshake
     final handshakePayload = {
-      "mt_instanceid": "63ae21a8-2417-484d-849b-0ae464a7b352",
+      "mt_instanceid": mtInstanceId,
       "userAgent": {
         "deviceType": "ANDROID",
         "appVersion": "25.14.2",
@@ -663,11 +705,11 @@ class RegistrationService {
         "arch": "x86_64",
         "locale": "ru",
         "buildNumber": 6442,
-        "deviceName": "unknown Android SDK built for x86_64",
+        "deviceName": deviceName,
         "deviceLocale": "en",
       },
       "clientSessionId": 8,
-      "deviceId": "d53058ab998c3bdd",
+      "deviceId": deviceId,
     };
 
     print('🤝 Отправляем handshake (opcode=6)...');
