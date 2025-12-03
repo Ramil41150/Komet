@@ -14,7 +14,7 @@ class BypassScreen extends StatefulWidget {
 
 class _BypassScreenState extends State<BypassScreen> {
   // 0 – обходы, 1 – фишки
-  int _selectedTab = 0;
+  int _selectedTab = 1;
   bool _kometAutoCompleteEnabled = false;
   bool _specialMessagesEnabled = false;
   bool _isLoadingSettings = true;
@@ -82,9 +82,9 @@ class _BypassScreenState extends State<BypassScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
-                          if (_selectedTab != 0) {
-                            setState(() => _selectedTab = 0);
-                          }
+                          //if (_selectedTab != 0) {
+                          //  setState(() => _selectedTab = 0);
+                          //}
                         },
                         child: _SegmentButton(
                           selected: _selectedTab == 0,
