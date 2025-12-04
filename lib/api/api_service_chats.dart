@@ -726,6 +726,53 @@ extension ApiServiceChats on ApiService {
     }
   }
 
+  /// Загружает старые сообщения начиная с указанного timestamp
+  /// [fromTimestamp] - timestamp в миллисекундах самого старого загруженного сообщения
+  /// [backward] - количество сообщений для загрузки (по умолчанию 30)
+  Future<List<Message>> loadOlderMessagesByTimestamp(
+    int chatId,
+    int fromTimestamp, {
+    int backward = 30,
+  }) async {
+    await waitUntilOnline();
+
+    print(
+      "📜 Запрашиваем старые сообщения для чата $chatId начиная с timestamp $fromTimestamp (backward: $backward)",
+    );
+
+    final payload = {
+      "chatId": chatId,
+      "from": fromTimestamp,
+      "forward": 0,
+      "backward": backward,
+      "getMessages": true,
+    };
+
+    try {
+      final int seq = _sendMessage(49, payload);
+      final response = await messages
+          .firstWhere((msg) => msg['seq'] == seq)
+          .timeout(const Duration(seconds: 15));
+
+      if (response['cmd'] == 3) {
+        final error = response['payload'];
+        print('❌ Ошибка получения старых сообщений: $error');
+        return [];
+      }
+
+      final List<dynamic> messagesJson = response['payload']?['messages'] ?? [];
+      final messagesList =
+          messagesJson.map((json) => Message.fromJson(json)).toList()
+            ..sort((a, b) => a.time.compareTo(b.time));
+
+      print('✅ Получено ${messagesList.length} старых сообщений');
+      return messagesList;
+    } catch (e) {
+      print('❌ Ошибка при получении старых сообщений: $e');
+      return [];
+    }
+  }
+
   void sendNavEvent(String event, {int? screenTo, int? screenFrom}) {
     if (_userId == null) return;
 

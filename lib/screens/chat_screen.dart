@@ -670,6 +670,26 @@ class _ChatScreenState extends State<ChatScreen> {
         final isAtBottom = positions.first.index == 0;
         _isUserAtBottom = isAtBottom;
         _showScrollToBottomNotifier.value = !isAtBottom;
+
+        // Проверяем, доскроллил ли пользователь до самого старого сообщения (вверх)
+        // При reverse: true, последний визуальный элемент (самый большой index) = самое старое сообщение
+        if (positions.isNotEmpty && _chatItems.isNotEmpty) {
+          final maxIndex = positions.map((p) => p.index).reduce((a, b) => a > b ? a : b);
+          // При reverse: true, когда maxIndex близок к _chatItems.length - 1, мы вверху (старые сообщения)
+          final threshold = _chatItems.length > 5 ? 3 : 1; // Загружаем когда осталось 3 элемента до верха
+          final isNearTop = maxIndex >= _chatItems.length - threshold;
+          
+          // Если доскроллили близко к верху и есть еще сообщения, загружаем
+          if (isNearTop && _hasMore && !_isLoadingMore && _messages.isNotEmpty && _oldestLoadedTime != null) {
+            print('📜 Пользователь доскроллил близко к верху (maxIndex: $maxIndex, total: ${_chatItems.length}), загружаем старые сообщения...');
+            // Вызываем после build фазы, чтобы избежать setState() во время build
+            Future.microtask(() {
+              if (mounted && _hasMore && !_isLoadingMore) {
+                _loadMore();
+              }
+            });
+          }
+        }
       }
     });
 
@@ -834,6 +854,14 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       _messages.clear();
       _messages.addAll(cachedMessages);
+      
+      // Устанавливаем _oldestLoadedTime и _hasMore для кэшированных сообщений
+      if (_messages.isNotEmpty) {
+        _oldestLoadedTime = _messages.first.time;
+        // Предполагаем, что могут быть еще сообщения (будет обновлено после загрузки с сервера)
+        _hasMore = true;
+        print('📜 Загружено из кэша: ${_messages.length} сообщений, _oldestLoadedTime=$_oldestLoadedTime');
+      }
 
       if (widget.isGroupChat) {
         await _loadGroupParticipants();
@@ -921,7 +949,10 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.clear();
         _messages.addAll(slice);
         _oldestLoadedTime = _messages.isNotEmpty ? _messages.first.time : null;
-        _hasMore = allMessages.length > _messages.length;
+        // Если получили максимальное количество сообщений (1000), возможно есть еще
+        // Также проверяем, есть ли сообщения старше самого старого загруженного
+        _hasMore = allMessages.length >= 1000 || allMessages.length > _messages.length;
+        print('📜 Первая загрузка: загружено ${allMessages.length} сообщений, показано ${_messages.length}, _hasMore=$_hasMore, _oldestLoadedTime=$_oldestLoadedTime');
         _buildChatItems();
         _isLoadingHistory = false;
       });
@@ -954,42 +985,80 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _loadMore() async {
-    if (_isLoadingMore || !_hasMore) return;
-    _isLoadingMore = true;
-    setState(() {});
-
-    final all = await ApiService.instance.getMessageHistory(
-      widget.chatId,
-      force: false,
-    );
-    if (!mounted) return;
-
-    final page = _anyOptimize ? _optPage : _pageSize;
-
-    final older = all
-        .where((m) => m.time < (_oldestLoadedTime ?? 1 << 62))
-        .toList();
-
-    if (older.isEmpty) {
+    print('📜 _loadMore() вызвана: _isLoadingMore=$_isLoadingMore, _hasMore=$_hasMore, _oldestLoadedTime=$_oldestLoadedTime');
+    
+    if (_isLoadingMore || !_hasMore) {
+      print('📜 _loadMore() пропущена: _isLoadingMore=$_isLoadingMore, _hasMore=$_hasMore');
+      return;
+    }
+    
+    if (_messages.isEmpty || _oldestLoadedTime == null) {
+      print('📜 _loadMore() пропущена: _messages.isEmpty=${_messages.isEmpty}, _oldestLoadedTime=$_oldestLoadedTime');
       _hasMore = false;
-      _isLoadingMore = false;
-      setState(() {});
       return;
     }
 
-    older.sort((a, b) => a.time.compareTo(b.time));
-    final take = older.length > page
-        ? older.sublist(older.length - page)
-        : older;
-
-    _messages.insertAll(0, take);
-    _oldestLoadedTime = _messages.first.time;
-    _hasMore = all.length > _messages.length;
-
-    _buildChatItems();
-    _isLoadingMore = false;
+    _isLoadingMore = true;
     setState(() {});
-    _updatePinnedMessage();
+
+    try {
+      print('📜 Загружаем старые сообщения для chatId=${widget.chatId}, fromTimestamp=$_oldestLoadedTime');
+      // Загружаем старые сообщения начиная с timestamp самого старого загруженного сообщения
+      final olderMessages = await ApiService.instance.loadOlderMessagesByTimestamp(
+        widget.chatId,
+        _oldestLoadedTime!,
+        backward: 30,
+      );
+      
+      print('📜 Получено ${olderMessages.length} старых сообщений');
+
+      if (!mounted) return;
+
+      if (olderMessages.isEmpty) {
+        // Больше нет старых сообщений
+        _hasMore = false;
+        _isLoadingMore = false;
+        setState(() {});
+        return;
+      }
+
+      // Фильтруем дубликаты - оставляем только те сообщения, которых еще нет в списке
+      final existingMessageIds = _messages.map((m) => m.id).toSet();
+      final newMessages = olderMessages.where((m) => !existingMessageIds.contains(m.id)).toList();
+      
+      if (newMessages.isEmpty) {
+        // Все сообщения уже есть в списке
+        _hasMore = false;
+        _isLoadingMore = false;
+        setState(() {});
+        return;
+      }
+
+      print('📜 Добавляем ${newMessages.length} новых старых сообщений (отфильтровано ${olderMessages.length - newMessages.length} дубликатов)');
+
+      // Добавляем старые сообщения в начало списка
+      _messages.insertAll(0, newMessages);
+      _oldestLoadedTime = _messages.first.time;
+
+      // Проверяем, есть ли еще сообщения (если получили меньше 30, значит это последние)
+      _hasMore = olderMessages.length >= 30;
+
+      _buildChatItems();
+      _isLoadingMore = false;
+
+      if (mounted) {
+        setState(() {});
+      }
+
+      _updatePinnedMessage();
+    } catch (e) {
+      print('❌ Ошибка при загрузке старых сообщений: $e');
+      if (mounted) {
+        _isLoadingMore = false;
+        _hasMore = false;
+        setState(() {});
+      }
+    }
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
@@ -1067,6 +1136,16 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
     _chatItems = items;
+    
+    // Очищаем ключи для сообщений, которых больше нет в списке
+    final currentMessageIds = _messages.map((m) => m.id).toSet();
+    final keysToRemove = _messageKeys.keys.where((id) => !currentMessageIds.contains(id)).toList();
+    for (final id in keysToRemove) {
+      _messageKeys.remove(id);
+    }
+    if (keysToRemove.isNotEmpty) {
+      print('📜 Очищено ${keysToRemove.length} ключей для удаленных сообщений');
+    }
   }
 
   void _updatePinnedMessage() {
@@ -2447,11 +2526,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                   final isLastVisual =
                                       index == _chatItems.length - 1;
 
-                                  if (isLastVisual &&
-                                      _hasMore &&
-                                      !_isLoadingMore) {
-                                    _loadMore();
-                                  }
+                                  // Убрали вызов _loadMore() отсюда - он вызывается из _itemPositionsListener
+                                  // чтобы избежать setState() во время build фазы
 
                                   if (item is MessageItem) {
                                     final message = item.message;

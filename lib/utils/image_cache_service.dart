@@ -18,8 +18,9 @@ class ImageCacheService {
   ); // Кеш изображений на 7 дней
   late Directory _cacheDirectory;
 
-  // LZ4 сжатие для экономии места
-  final Lz4Codec _lz4Codec = Lz4Codec();
+  // LZ4 сжатие для экономии места (может быть null если библиотека недоступна)
+  Lz4Codec? _lz4Codec;
+  bool _lz4Available = false;
 
   Future<void> initialize() async {
     final appDir = await getApplicationDocumentsDirectory();
@@ -27,6 +28,17 @@ class ImageCacheService {
 
     if (!_cacheDirectory.existsSync()) {
       await _cacheDirectory.create(recursive: true);
+    }
+
+    // Пытаемся инициализировать LZ4, если не получится - используем обычное кэширование
+    try {
+      _lz4Codec = Lz4Codec();
+      _lz4Available = true;
+      print('✅ LZ4 compression доступна');
+    } catch (e) {
+      _lz4Codec = null;
+      _lz4Available = false;
+      print('⚠️ LZ4 compression недоступна, используется обычное кэширование: $e');
     }
 
     await _cleanupExpiredCache();
@@ -56,9 +68,20 @@ class ImageCacheService {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final file = File(getCachedImagePath(url));
-        // Сжимаем данные перед сохранением
-        final compressedData = _lz4Codec.encode(response.bodyBytes);
-        await file.writeAsBytes(compressedData);
+        // Сжимаем данные перед сохранением, если LZ4 доступна
+        if (_lz4Available && _lz4Codec != null) {
+          try {
+            final compressedData = _lz4Codec!.encode(response.bodyBytes);
+            await file.writeAsBytes(compressedData);
+          } catch (e) {
+            // Если сжатие не удалось, сохраняем без сжатия
+            print('⚠️ Ошибка сжатия изображения $url, сохраняем без сжатия: $e');
+            await file.writeAsBytes(response.bodyBytes);
+          }
+        } else {
+          // LZ4 недоступна, сохраняем без сжатия
+          await file.writeAsBytes(response.bodyBytes);
+        }
 
         await _updateFileAccessTime(file);
 
@@ -77,17 +100,22 @@ class ImageCacheService {
   }) async {
     final file = await loadImage(url, forceRefresh: forceRefresh);
     if (file != null) {
-      final compressedData = await file.readAsBytes();
-      try {
-        // Декомпрессируем данные
-        final decompressedData = _lz4Codec.decode(compressedData);
-        return Uint8List.fromList(decompressedData);
-      } catch (e) {
-        // Если декомпрессия не удалась, возможно файл не сжат (старый формат)
-        print(
-          'Ошибка декомпрессии изображения $url, пробуем прочитать как обычный файл: $e',
-        );
-        return compressedData;
+      final fileData = await file.readAsBytes();
+      // Пытаемся декомпрессировать, если LZ4 доступна
+      if (_lz4Available && _lz4Codec != null) {
+        try {
+          final decompressedData = _lz4Codec!.decode(fileData);
+          return Uint8List.fromList(decompressedData);
+        } catch (e) {
+          // Если декомпрессия не удалась, возможно файл не сжат (старый формат или LZ4 недоступна)
+          print(
+            '⚠️ Ошибка декомпрессии изображения $url, пробуем прочитать как обычный файл: $e',
+          );
+          return fileData;
+        }
+      } else {
+        // LZ4 недоступна, возвращаем данные как есть
+        return fileData;
       }
     }
     return null;
@@ -237,8 +265,8 @@ class ImageCacheService {
       'cache_size_mb': (size / (1024 * 1024)).toStringAsFixed(2),
       'file_count': fileCount,
       'cache_directory': _cacheDirectory.path,
-      'compression_enabled': true,
-      'compression_algorithm': 'LZ4',
+      'compression_enabled': _lz4Available,
+      'compression_algorithm': _lz4Available ? 'LZ4' : 'none',
     };
   }
 }

@@ -22,8 +22,9 @@ class CacheService {
 
   Directory? _cacheDirectory;
 
-  // LZ4 сжатие для экономии места
-  final Lz4Codec _lz4Codec = Lz4Codec();
+  // LZ4 сжатие для экономии места (может быть null если библиотека недоступна)
+  Lz4Codec? _lz4Codec;
+  bool _lz4Available = false;
 
   // Синхронизация операций очистки кэша
   static final _clearLock = Object();
@@ -42,6 +43,17 @@ class CacheService {
     _cacheDirectory = await getApplicationCacheDirectory();
 
     await _createCacheDirectories();
+
+    // Пытаемся инициализировать LZ4, если не получится - используем обычное кэширование
+    try {
+      _lz4Codec = Lz4Codec();
+      _lz4Available = true;
+      print('✅ CacheService: LZ4 compression доступна');
+    } catch (e) {
+      _lz4Codec = null;
+      _lz4Available = false;
+      print('⚠️ CacheService: LZ4 compression недоступна, используется обычное кэширование: $e');
+    }
 
     print('CacheService инициализирован');
   }
@@ -240,13 +252,26 @@ class CacheService {
 
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        // Сжимаем данные перед сохранением
-        final compressedData = _lz4Codec.encode(response.bodyBytes);
-        await existingFile.writeAsBytes(compressedData);
+        // Сжимаем данные перед сохранением, если LZ4 доступна
+        if (_lz4Available && _lz4Codec != null) {
+          try {
+            final compressedData = _lz4Codec!.encode(response.bodyBytes);
+            await existingFile.writeAsBytes(compressedData);
+          } catch (e) {
+            // Если сжатие не удалось, сохраняем без сжатия
+            print('⚠️ Ошибка сжатия файла $url, сохраняем без сжатия: $e');
+            await existingFile.writeAsBytes(response.bodyBytes);
+          }
+        } else {
+          // LZ4 недоступна, сохраняем без сжатия
+          await existingFile.writeAsBytes(response.bodyBytes);
+        }
         return filePath;
       }
     } catch (e) {
       print('Ошибка кэширования файла $url: $e');
+      // Не вызываем запрос повторно при ошибке
+      return null;
     }
 
     return null;
@@ -309,17 +334,22 @@ class CacheService {
   Future<Uint8List?> getCachedFileBytes(String url, {String? customKey}) async {
     final file = await getCachedFile(url, customKey: customKey);
     if (file != null && await file.exists()) {
-      final compressedData = await file.readAsBytes();
-      try {
-        // Декомпрессируем данные
-        final decompressedData = _lz4Codec.decode(compressedData);
-        return Uint8List.fromList(decompressedData);
-      } catch (e) {
-        // Если декомпрессия не удалась, возможно файл не сжат (старый формат)
-        print(
-          'Ошибка декомпрессии файла $url, пробуем прочитать как обычный файл: $e',
-        );
-        return compressedData;
+      final fileData = await file.readAsBytes();
+      // Пытаемся декомпрессировать, если LZ4 доступна
+      if (_lz4Available && _lz4Codec != null) {
+        try {
+          final decompressedData = _lz4Codec!.decode(fileData);
+          return Uint8List.fromList(decompressedData);
+        } catch (e) {
+          // Если декомпрессия не удалась, возможно файл не сжат (старый формат или LZ4 недоступна)
+          print(
+            '⚠️ Ошибка декомпрессии файла $url, пробуем прочитать как обычный файл: $e',
+          );
+          return fileData;
+        }
+      } else {
+        // LZ4 недоступна, возвращаем данные как есть
+        return fileData;
       }
     }
     return null;
@@ -388,8 +418,8 @@ class CacheService {
       'memorySize': sizes['memory'],
       'filesSizeMB': (sizes['files']! / (1024 * 1024)).toStringAsFixed(2),
       'maxMemorySize': _maxMemoryCacheSize,
-      'compression_enabled': true,
-      'compression_algorithm': 'LZ4',
+      'compression_enabled': _lz4Available,
+      'compression_algorithm': _lz4Available ? 'LZ4' : 'none',
     };
   }
 
@@ -447,9 +477,20 @@ class CacheService {
           await audioDir.create(recursive: true);
         }
 
-        // Сжимаем аудио данные перед сохранением
-        final compressedData = _lz4Codec.encode(response.bodyBytes);
-        await existingFile.writeAsBytes(compressedData);
+        // Сжимаем аудио данные перед сохранением, если LZ4 доступна
+        if (_lz4Available && _lz4Codec != null) {
+          try {
+            final compressedData = _lz4Codec!.encode(response.bodyBytes);
+            await existingFile.writeAsBytes(compressedData);
+          } catch (e) {
+            // Если сжатие не удалось, сохраняем без сжатия
+            print('⚠️ Ошибка сжатия аудио файла $url, сохраняем без сжатия: $e');
+            await existingFile.writeAsBytes(response.bodyBytes);
+          }
+        } else {
+          // LZ4 недоступна, сохраняем без сжатия
+          await existingFile.writeAsBytes(response.bodyBytes);
+        }
         final fileSize = await existingFile.length();
         print(
           'CacheService: Audio cached successfully: $filePath (compressed size: $fileSize bytes)',
@@ -507,17 +548,22 @@ class CacheService {
   }) async {
     final file = await getCachedAudioFile(url, customKey: customKey);
     if (file != null && await file.exists()) {
-      final compressedData = await file.readAsBytes();
-      try {
-        // Декомпрессируем данные
-        final decompressedData = _lz4Codec.decode(compressedData);
-        return Uint8List.fromList(decompressedData);
-      } catch (e) {
-        // Если декомпрессия не удалась, возможно файл не сжат (старый формат)
-        print(
-          'Ошибка декомпрессии аудио файла $url, пробуем прочитать как обычный файл: $e',
-        );
-        return compressedData;
+      final fileData = await file.readAsBytes();
+      // Пытаемся декомпрессировать, если LZ4 доступна
+      if (_lz4Available && _lz4Codec != null) {
+        try {
+          final decompressedData = _lz4Codec!.decode(fileData);
+          return Uint8List.fromList(decompressedData);
+        } catch (e) {
+          // Если декомпрессия не удалась, возможно файл не сжат (старый формат или LZ4 недоступна)
+          print(
+            '⚠️ Ошибка декомпрессии аудио файла $url, пробуем прочитать как обычный файл: $e',
+          );
+          return fileData;
+        }
+      } else {
+        // LZ4 недоступна, возвращаем данные как есть
+        return fileData;
       }
     }
     return null;

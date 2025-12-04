@@ -248,23 +248,17 @@ extension ApiServiceContacts on ApiService {
   }
 
   Future<int?> getChatIdByUserId(int userId) async {
-    // Используем формулу: chatId = userId1 ^ userId2
-    // где userId1 - наш ID, userId2 - ID собеседника
+    // ПИДОРИСТИЧЕСКАЯ ФОРМУЛА ОТ ДЕДА chatId = userId1 ^ userId2
     if (_userId == null) {
-      print('⚠️ Не удалось вычислить chatId: наш userId не установлен');
       return null;
     }
 
     final chatId = _userId! ^ userId;
-    print('✅ Вычислен chatId для диалога: наш userId=$_userId, собеседник userId=$userId, chatId=$chatId');
     return chatId;
   }
 
   Future<List<Contact>> fetchContactsByIds(List<int> contactIds) async {
     if (contactIds.isEmpty) {
-      print(
-        '⚠️ [fetchContactsByIds] Пустой список contactIds - пропускаем запрос',
-      );
       return [];
     }
 
