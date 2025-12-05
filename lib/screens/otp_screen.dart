@@ -45,23 +45,48 @@ class _OTPScreenState extends State<OTPScreen> {
       }
 
       if (message['opcode'] == 18 && mounted) {
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() => _isLoading = false);
-          }
-        });
-
+        print('Получен ответ opcode 18, полное сообщение: $message');
         final payload = message['payload'];
-        print('Полный payload при авторизации: $payload');
-        if (payload != null &&
-            payload['tokenAttrs']?['LOGIN']?['token'] != null) {
-          final String finalToken = payload['tokenAttrs']['LOGIN']['token'];
-          final userId = payload['payload']?['profile']?['contact']?['id'];
-          print('Успешная авторизация! Токен: $finalToken, UserID: $userId');
+        print('Payload при авторизации: $payload');
+        
+        String? finalToken;
+        String? userId;
+        
+        if (payload != null) {
+          final tokenAttrs = payload['tokenAttrs'];
+          print('tokenAttrs: $tokenAttrs');
+          
+          if (tokenAttrs != null && tokenAttrs['LOGIN'] != null) {
+            final loginToken = tokenAttrs['LOGIN']['token'];
+            final loginUserId = tokenAttrs['LOGIN']['userId'] ?? 
+                               payload['payload']?['profile']?['contact']?['id'] ??
+                               payload['profile']?['contact']?['id'];
+            
+            if (loginToken != null) {
+              finalToken = loginToken.toString();
+              userId = loginUserId?.toString();
+              print('Найден LOGIN токен: ${finalToken.substring(0, 20)}..., UserID: $userId');
+            }
+          }
+        }
+        
+        if (finalToken != null) {
+          print('Успешная авторизация! Токен: ${finalToken.substring(0, 20)}..., UserID: $userId');
 
-          ApiService.instance
-              .saveToken(finalToken, userId: userId?.toString())
-              .then((_) {
+          SchedulerBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            setState(() => _isLoading = true);
+
+            try {
+              print('Начинаем сохранение токена и переподключение...');
+              await ApiService.instance.saveToken(
+                finalToken!,
+                userId: userId,
+              );
+              print('Токен сохранен, переподключение завершено');
+
+              if (mounted) {
+                setState(() => _isLoading = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: const Text('Код верный! Вход выполнен.'),
@@ -74,12 +99,39 @@ class _OTPScreenState extends State<OTPScreen> {
                   ),
                 );
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const ChatsScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const ChatsScreen(),
+                  ),
                   (route) => false,
                 );
-              });
+              }
+            } catch (e, stackTrace) {
+              print('Ошибка при переподключении: $e');
+              print('StackTrace: $stackTrace');
+              if (mounted) {
+                setState(() => _isLoading = false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Ошибка при переподключении: ${e.toString()}'),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.all(10),
+                  ),
+                );
+              }
+            }
+          });
         } else {
-          _handleIncorrectCode();
+          print('Токен LOGIN не найден в ответе, возможно неверный код');
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => _isLoading = false);
+              _handleIncorrectCode();
+            }
+          });
         }
       }
     });

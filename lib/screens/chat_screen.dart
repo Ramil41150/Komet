@@ -2092,7 +2092,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_encryptionConfigForCurrentChat != null &&
           _encryptionConfigForCurrentChat!.password.isNotEmpty &&
           _sendEncryptedForCurrentChat &&
-          !originalText.startsWith(ChatEncryptionService.encryptedPrefix)) {
+          !ChatEncryptionService.isEncryptedMessage(originalText)) {
         textToSend = ChatEncryptionService.encryptWithPassword(
           _encryptionConfigForCurrentChat!.password,
           originalText,
@@ -3292,8 +3292,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                         _encryptionConfigForCurrentChat!
                                             .password
                                             .isNotEmpty &&
-                                        item.message.text.startsWith(
-                                          ChatEncryptionService.encryptedPrefix,
+                                        ChatEncryptionService.isEncryptedMessage(
+                                          item.message.text,
                                         )) {
                                       decryptedText =
                                           ChatEncryptionService.decryptWithPassword(

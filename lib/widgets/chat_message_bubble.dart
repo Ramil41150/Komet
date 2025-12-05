@@ -29,6 +29,7 @@ import 'package:video_player/video_player.dart';
 import 'package:gwid/services/music_player_service.dart';
 import 'package:platform_info/platform_info.dart';
 import 'package:gwid/utils/download_path_helper.dart';
+import 'package:gwid/services/chat_encryption_service.dart';
 
 bool _currentIsDark = false;
 
@@ -4075,8 +4076,8 @@ class ChatMessageBubble extends StatelessWidget {
           const SizedBox(height: 6),
         ],
         if (message.text.isNotEmpty) ...[
-          if (message.text.startsWith('kometSM.') &&
-              message.text.length > 'kometSM.'.length &&
+          if (ChatEncryptionService.isEncryptedMessage(message.text) &&
+              message.text.length > 1 &&
               !isEncryptionPasswordSet)
             Text(
               'это зашифрованное сообщение, для его отображение поставьте пароль шифрования на чат.',
@@ -4086,8 +4087,8 @@ class ChatMessageBubble extends StatelessWidget {
                 fontSize: 14,
               ),
             )
-          else if (message.text.startsWith('kometSM.') &&
-              message.text.length > 'kometSM.'.length &&
+          else if (ChatEncryptionService.isEncryptedMessage(message.text) &&
+              message.text.length > 1 &&
               isEncryptionPasswordSet &&
               decryptedText == null)
             Text(
