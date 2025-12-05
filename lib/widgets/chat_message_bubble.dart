@@ -657,9 +657,7 @@ class ChatMessageBubble extends StatelessWidget {
     Uint8List? lowQualityBytes,
     int? videoType,
   }) {
-    // Логика открытия плеера
     void openFullScreenVideo() async {
-      // Показываем индикатор загрузки, пока получаем URL
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -669,12 +667,12 @@ class ChatMessageBubble extends StatelessWidget {
       try {
         final videoUrl = await ApiService.instance.getVideoUrl(
           videoId,
-          chatId!, // chatId из `build`
+          chatId!,
           messageId,
         );
 
-        if (!context.mounted) return; // [!code ++] Проверка правильным способом
-        Navigator.pop(context); // Убираем индикатор
+        if (!context.mounted) return;
+        Navigator.pop(context);
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -682,8 +680,8 @@ class ChatMessageBubble extends StatelessWidget {
           ),
         );
       } catch (e) {
-        if (!context.mounted) return; // [!code ++] Проверка правильным способом
-        Navigator.pop(context); // Убираем индикатор
+        if (!context.mounted) return;
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Не удалось загрузить видео: $e'),
@@ -705,55 +703,58 @@ class ChatMessageBubble extends StatelessWidget {
       );
     }
 
-    return GestureDetector(
-      onTap: openFullScreenVideo,
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Stack(
-            alignment: Alignment.center,
-            fit: StackFit.expand,
-            children: [
-              // Если у нас есть ХОТЬ ЧТО-ТО (блюр или URL), показываем ProgressiveImage
-              (highQualityUrl != null && highQualityUrl.isNotEmpty) ||
-                      (lowQualityBytes != null)
-                  ? _ProgressiveNetworkImage(
-                      url: highQualityUrl ?? '',
-                      previewBytes: lowQualityBytes,
-                      width: 220,
-                      height: 160,
-                      fit: BoxFit.cover,
-                      keepAlive: false,
-                    )
-                  : Container(
-                      color: Colors.black26,
-                      child: const Center(
-                        child: Icon(
-                          Icons.video_library_outlined,
-                          color: Colors.white,
-                          size: 40,
+    return RepaintBoundary(
+      key: ValueKey('video_preview_boundary_${messageId}_$videoId'),
+      child: GestureDetector(
+        onTap: openFullScreenVideo,
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              alignment: Alignment.center,
+              fit: StackFit.expand,
+              children: [
+                (highQualityUrl != null && highQualityUrl.isNotEmpty) ||
+                        (lowQualityBytes != null)
+                    ? _ProgressiveNetworkImage(
+                        key: ValueKey('video_preview_image_${messageId}_$videoId'),
+                        url: highQualityUrl ?? '',
+                        previewBytes: lowQualityBytes,
+                        width: 220,
+                        height: 160,
+                        fit: BoxFit.cover,
+                        keepAlive: true,
+                      )
+                    : Container(
+                        color: Colors.black26,
+                        child: const Center(
+                          child: Icon(
+                            Icons.video_library_outlined,
+                            color: Colors.white,
+                            size: 40,
+                          ),
                         ),
                       ),
-                    ),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.15),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.15),
+                  ),
+                  child: Icon(
+                    Icons.play_circle_filled_outlined,
+                    color: Colors.white.withOpacity(0.95),
+                    size: 50,
+                    shadows: const [
+                      Shadow(
+                        color: Colors.black38,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Icon(
-                  Icons.play_circle_filled_outlined,
-                  color: Colors.white.withOpacity(0.95),
-                  size: 50,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.black38,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2004,13 +2005,16 @@ class ChatMessageBubble extends StatelessWidget {
                             padding: const EdgeInsets.only(bottom: 4.0),
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 300),
-                              child: _buildVideoPreview(
-                                context: context,
-                                videoId: videoId,
-                                messageId: message.id,
-                                highQualityUrl: highQualityThumbnailUrl,
-                                lowQualityBytes: previewBytes,
-                                videoType: videoType,
+                              child: RepaintBoundary(
+                                key: ValueKey('video_preview_${message.id}_$videoId'),
+                                child: _buildVideoPreview(
+                                  context: context,
+                                  videoId: videoId,
+                                  messageId: message.id,
+                                  highQualityUrl: highQualityThumbnailUrl,
+                                  lowQualityBytes: previewBytes,
+                                  videoType: videoType,
+                                ),
                               ),
                             ),
                           ),
@@ -2179,13 +2183,16 @@ class ChatMessageBubble extends StatelessWidget {
         widgets.add(
           Padding(
             padding: const EdgeInsets.only(bottom: 4.0),
-            child: _buildVideoPreview(
-              context: context,
-              videoId: videoId,
-              messageId: message.id,
-              highQualityUrl: highQualityThumbnailUrl,
-              lowQualityBytes: previewBytes,
-              videoType: videoType,
+            child: RepaintBoundary(
+              key: ValueKey('video_preview_${message.id}_$videoId'),
+              child: _buildVideoPreview(
+                context: context,
+                videoId: videoId,
+                messageId: message.id,
+                highQualityUrl: highQualityThumbnailUrl,
+                lowQualityBytes: previewBytes,
+                videoType: videoType,
+              ),
             ),
           ),
         );

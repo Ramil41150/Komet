@@ -40,7 +40,12 @@ class AvatarCacheService {
         final timestamp = _imageCacheTimestamps[cacheKey];
         if (timestamp != null && !_isExpired(timestamp, _imageTTL)) {
           final imageData = _imageMemoryCache[cacheKey]!;
-          return MemoryImage(imageData);
+          if (_isValidImageData(imageData)) {
+            return MemoryImage(imageData);
+          } else {
+            _imageMemoryCache.remove(cacheKey);
+            _imageCacheTimestamps.remove(cacheKey);
+          }
         } else {
           _imageMemoryCache.remove(cacheKey);
           _imageCacheTimestamps.remove(cacheKey);
@@ -52,20 +57,25 @@ class AvatarCacheService {
         customKey: cacheKey,
       );
       if (cachedFile != null && await cachedFile.exists()) {
-        final imageData = await cachedFile.readAsBytes();
+        try {
+          final imageData = await cachedFile.readAsBytes();
+          if (_isValidImageData(imageData)) {
+            _imageMemoryCache[cacheKey] = imageData;
+            _imageCacheTimestamps[cacheKey] = DateTime.now();
 
-        _imageMemoryCache[cacheKey] = imageData;
-        _imageCacheTimestamps[cacheKey] = DateTime.now();
+            if (_imageMemoryCache.length > _maxMemoryImages) {
+              await _evictOldestImages();
+            }
 
-        if (_imageMemoryCache.length > _maxMemoryImages) {
-          await _evictOldestImages();
+            return MemoryImage(imageData);
+          }
+        } catch (e) {
+          print('Ошибка чтения кешированного файла аватарки: $e');
         }
-
-        return MemoryImage(imageData);
       }
 
       final imageData = await _downloadImage(avatarUrl);
-      if (imageData != null) {
+      if (imageData != null && _isValidImageData(imageData)) {
         await _cacheService.cacheFile(avatarUrl, customKey: cacheKey);
 
         _imageMemoryCache[cacheKey] = imageData;
@@ -73,6 +83,8 @@ class AvatarCacheService {
 
         return MemoryImage(imageData);
       }
+
+      return NetworkImage(avatarUrl);
     } catch (e) {
       print('Ошибка получения аватарки: $e');
     }
@@ -111,12 +123,45 @@ class AvatarCacheService {
           return null;
         }
 
+        if (!_isValidImageData(imageData)) {
+          print('Невалидные данные изображения для $url');
+          return null;
+        }
+
         return imageData;
       }
     } catch (e) {
       print('Ошибка загрузки изображения $url: $e');
     }
     return null;
+  }
+
+  bool _isValidImageData(Uint8List data) {
+    if (data.isEmpty) return false;
+    if (data.length < 4) return false;
+
+    final header = data.sublist(0, 4);
+    final pngHeader = [0x89, 0x50, 0x4E, 0x47];
+    final jpegHeader = [0xFF, 0xD8, 0xFF];
+    final gifHeader = [0x47, 0x49, 0x46, 0x38];
+    final webpHeader = [0x52, 0x49, 0x46, 0x46];
+
+    bool isValid = false;
+    if (header[0] == pngHeader[0] && header[1] == pngHeader[1] &&
+        header[2] == pngHeader[2] && header[3] == pngHeader[3]) {
+      isValid = true;
+    } else if (header[0] == jpegHeader[0] && header[1] == jpegHeader[1] &&
+        header[2] == jpegHeader[2]) {
+      isValid = true;
+    } else if (header[0] == gifHeader[0] && header[1] == gifHeader[1] &&
+        header[2] == gifHeader[2] && header[3] == gifHeader[3]) {
+      isValid = true;
+    } else if (header[0] == webpHeader[0] && header[1] == webpHeader[1] &&
+        header[2] == webpHeader[2] && header[3] == webpHeader[3]) {
+      isValid = true;
+    }
+
+    return isValid;
   }
 
   String _generateCacheKey(String url, int? userId) {

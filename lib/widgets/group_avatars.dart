@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:gwid/models/chat.dart';
 import 'package:gwid/models/contact.dart';
+import 'package:gwid/services/avatar_cache_service.dart';
 
 class GroupAvatars extends StatelessWidget {
   final Chat chat;
@@ -39,13 +40,13 @@ class GroupAvatars extends StatelessWidget {
     double adaptiveAvatarSize;
     if (totalParticipants <= 2) {
       adaptiveAvatarSize =
-          avatarSize * 1.5; // Большие аватары для 1-2 участников
+          avatarSize * 1.5;
     } else if (totalParticipants <= 4) {
       adaptiveAvatarSize =
-          avatarSize * 1.2; // Средние аватары для 3-4 участников
+          avatarSize * 1.2;
     } else {
       adaptiveAvatarSize =
-          avatarSize * 0.8; // Маленькие аватары для 5+ участников
+          avatarSize * 0.8;
     }
 
     return SizedBox(
@@ -114,45 +115,91 @@ class GroupAvatars extends StatelessWidget {
   ) {
     final colors = Theme.of(context).colorScheme;
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: colors.surface, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: colors.shadow.withOpacity(0.3),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    if (contact == null || contact.photoBaseUrl == null || contact.photoBaseUrl!.isEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: colors.surface, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: colors.shadow.withOpacity(0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: CircleAvatar(
+          radius: size / 2,
+          backgroundColor: contact != null
+              ? colors.primaryContainer
+              : colors.secondaryContainer,
+          child: Text(
+            contact?.name.isNotEmpty == true
+                ? contact!.name[0].toUpperCase()
+                : participantId.toString().substring(
+                    participantId.toString().length - 1,
+                  ),
+            style: TextStyle(
+              color: contact != null
+                  ? colors.onPrimaryContainer
+                  : colors.onSecondaryContainer,
+              fontSize: size * 0.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ],
-      ),
-      child: CircleAvatar(
-        radius: size / 2,
-        backgroundColor: contact != null
-            ? colors.primaryContainer
-            : colors.secondaryContainer,
-        backgroundImage: contact?.photoBaseUrl != null
-            ? NetworkImage(contact!.photoBaseUrl!)
-            : null,
-        child: contact?.photoBaseUrl == null
-            ? Text(
-                contact?.name.isNotEmpty == true
-                    ? contact!.name[0].toUpperCase()
-                    : participantId.toString().substring(
-                        participantId.toString().length - 1,
-                      ), // Последняя цифра ID
-                style: TextStyle(
-                  color: contact != null
-                      ? colors.onPrimaryContainer
-                      : colors.onSecondaryContainer,
-                  fontSize: size * 0.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              )
-            : null,
-      ),
+        ),
+      );
+    }
+
+    return FutureBuilder<ImageProvider?>(
+      future: AvatarCacheService().getAvatar(contact.photoBaseUrl, userId: participantId),
+      builder: (context, snapshot) {
+        ImageProvider? imageProvider;
+        if (snapshot.hasData && snapshot.data != null) {
+          imageProvider = snapshot.data;
+        } else {
+          imageProvider = NetworkImage(contact.photoBaseUrl!);
+        }
+
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: colors.surface, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: colors.shadow.withOpacity(0.3),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: CircleAvatar(
+            radius: size / 2,
+            backgroundColor: colors.primaryContainer,
+            backgroundImage: imageProvider,
+            onBackgroundImageError: (exception, stackTrace) {
+            },
+            child: imageProvider == null
+                ? Text(
+                    contact.name.isNotEmpty
+                        ? contact.name[0].toUpperCase()
+                        : participantId.toString().substring(
+                            participantId.toString().length - 1,
+                          ),
+                    style: TextStyle(
+                      color: colors.onPrimaryContainer,
+                      fontSize: size * 0.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                : null,
+          ),
+        );
+      },
     );
   }
 

@@ -242,7 +242,6 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                     title: const Text("Выбрать видео"),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () async {
-
                       final result = await FilePicker.platform.pickFiles(
                         type: FileType.video,
                       );
@@ -278,7 +277,7 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
               // Предпросмотр баблов
               const _MessageBubblesPreview(),
               const SizedBox(height: 16),
-              
+
               // Прозрачность (сворачиваемый, по умолчанию свернут)
               _ExpandableSection(
                 title: "Прозрачность",
@@ -292,7 +291,8 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                     max: 1.0,
                     divisions: 18,
                     onChanged: (value) => theme.setMessageTextOpacity(value),
-                    displayValue: "${(theme.messageTextOpacity * 100).round()}%",
+                    displayValue:
+                        "${(theme.messageTextOpacity * 100).round()}%",
                   ),
                   _SliderTile(
                     icon: Icons.blur_circular,
@@ -301,7 +301,8 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                     min: 0.0,
                     max: 0.5,
                     divisions: 10,
-                    onChanged: (value) => theme.setMessageShadowIntensity(value),
+                    onChanged: (value) =>
+                        theme.setMessageShadowIntensity(value),
                     displayValue:
                         "${(theme.messageShadowIntensity * 100).round()}%",
                   ),
@@ -313,7 +314,8 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                     max: 1.0,
                     divisions: 18,
                     onChanged: (value) => theme.setMessageMenuOpacity(value),
-                    displayValue: "${(theme.messageMenuOpacity * 100).round()}%",
+                    displayValue:
+                        "${(theme.messageMenuOpacity * 100).round()}%",
                   ),
                   _SliderTile(
                     icon: Icons.blur_on,
@@ -340,7 +342,7 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // Вид (сворачиваемый)
               _ExpandableSection(
                 title: "Вид",
@@ -368,7 +370,8 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                           value: theme.messageBubbleType,
                           underline: const SizedBox.shrink(),
                           onChanged: (value) {
-                            if (value != null) theme.setMessageBubbleType(value);
+                            if (value != null)
+                              theme.setMessageBubbleType(value);
                           },
                           items: MessageBubbleType.values.map((type) {
                             return DropdownMenuItem(
@@ -390,7 +393,8 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                         opacity: isSystemTheme ? 0.5 : 1.0,
                         child: GestureDetector(
                           onTap: () async {
-                            final initial = myBubbleColorToShow ?? myBubbleFallback;
+                            final initial =
+                                myBubbleColorToShow ?? myBubbleFallback;
                             _showColorPicker(
                               context,
                               initialColor: initial,
@@ -425,14 +429,16 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                             _showColorPicker(
                               context,
                               initialColor: initial,
-                              onColorChanged: (color) => theirBubbleSetter(color),
+                              onColorChanged: (color) =>
+                                  theirBubbleSetter(color),
                             );
                           },
                           child: Container(
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: theirBubbleColorToShow ?? theirBubbleFallback,
+                              color:
+                                  theirBubbleColorToShow ?? theirBubbleFallback,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.grey),
                             ),
@@ -457,7 +463,8 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                       title: "Цвет панели ответа",
                       subtitle: "Фиксированный цвет",
                       color: theme.customReplyColor ?? Colors.blue,
-                      onColorChanged: (color) => theme.setCustomReplyColor(color),
+                      onColorChanged: (color) =>
+                          theme.setCustomReplyColor(color),
                     ),
                   ],
                 ],
@@ -471,7 +478,7 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
               // Предпросмотр всплывающего окна
               _DialogPreview(),
               const SizedBox(height: 16),
-              
+
               // Развернуть настройки
               _ExpandableSection(
                 title: "Настройки",
@@ -485,7 +492,8 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                     max: 1.0,
                     divisions: 20,
                     onChanged: (value) => theme.setProfileDialogOpacity(value),
-                    displayValue: "${(theme.profileDialogOpacity * 100).round()}%",
+                    displayValue:
+                        "${(theme.profileDialogOpacity * 100).round()}%",
                   ),
                   _SliderTile(
                     icon: Icons.blur_on,
@@ -517,13 +525,330 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
             ],
           ),
           const SizedBox(height: 24),
+          _ExpandableSection(
+            title: "Кастомизация+",
+            initiallyExpanded: false,
+            children: [
+              _CustomSettingTile(
+                icon: Icons.format_color_fill,
+                title: "Фон списка чатов",
+                subtitle: "Выберите тип фона для списка чатов",
+                child: DropdownButton<ChatsListBackgroundType>(
+                  value: theme.chatsListBackgroundType,
+                  underline: const SizedBox.shrink(),
+                  onChanged: (value) {
+                    if (value != null) theme.setChatsListBackgroundType(value);
+                  },
+                  items: ChatsListBackgroundType.values.map((type) {
+                    return DropdownMenuItem(
+                      value: type,
+                      child: Text(type.displayName),
+                    );
+                  }).toList(),
+                ),
+              ),
+              if (theme.chatsListBackgroundType ==
+                  ChatsListBackgroundType.gradient) ...[
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 1",
+                  subtitle: "Начальный цвет градиента",
+                  color: theme.chatsListGradientColor1,
+                  onColorChanged: (color) =>
+                      theme.setChatsListGradientColor1(color),
+                ),
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 2",
+                  subtitle: "Конечный цвет градиента",
+                  color: theme.chatsListGradientColor2,
+                  onColorChanged: (color) =>
+                      theme.setChatsListGradientColor2(color),
+                ),
+              ],
+              if (theme.chatsListBackgroundType ==
+                  ChatsListBackgroundType.image) ...[
+                const Divider(height: 24),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text("Выбрать изображение"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final picker = ImagePicker();
+                    final image = await picker.pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    if (image != null) {
+                      theme.setChatsListImagePath(image.path);
+                    }
+                  },
+                ),
+                if (theme.chatsListImagePath?.isNotEmpty == true) ...[
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                    ),
+                    title: const Text(
+                      "Удалить изображение",
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
+                    onTap: () => theme.setChatsListImagePath(null),
+                  ),
+                ],
+              ],
+              const Divider(height: 24),
+              _CustomSettingTile(
+                icon: Icons.view_sidebar,
+                title: "Фон боковой панели",
+                subtitle: "Выберите тип фона для боковой панели",
+                child: DropdownButton<DrawerBackgroundType>(
+                  value: theme.drawerBackgroundType,
+                  underline: const SizedBox.shrink(),
+                  onChanged: (value) {
+                    if (value != null) theme.setDrawerBackgroundType(value);
+                  },
+                  items: DrawerBackgroundType.values.map((type) {
+                    return DropdownMenuItem(
+                      value: type,
+                      child: Text(type.displayName),
+                    );
+                  }).toList(),
+                ),
+              ),
+              if (theme.drawerBackgroundType ==
+                  DrawerBackgroundType.gradient) ...[
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 1",
+                  subtitle: "Начальный цвет градиента",
+                  color: theme.drawerGradientColor1,
+                  onColorChanged: (color) =>
+                      theme.setDrawerGradientColor1(color),
+                ),
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 2",
+                  subtitle: "Конечный цвет градиента",
+                  color: theme.drawerGradientColor2,
+                  onColorChanged: (color) =>
+                      theme.setDrawerGradientColor2(color),
+                ),
+              ],
+              if (theme.drawerBackgroundType == DrawerBackgroundType.image) ...[
+                const Divider(height: 24),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text("Выбрать изображение"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final picker = ImagePicker();
+                    final image = await picker.pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    if (image != null) {
+                      theme.setDrawerImagePath(image.path);
+                    }
+                  },
+                ),
+                if (theme.drawerImagePath?.isNotEmpty == true) ...[
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                    ),
+                    title: const Text(
+                      "Удалить изображение",
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
+                    onTap: () => theme.setDrawerImagePath(null),
+                  ),
+                ],
+              ],
+              const Divider(height: 24),
+              _CustomSettingTile(
+                icon: Icons.person_add,
+                title: "Градиент для кнопки добавления аккаунта",
+                subtitle: "Применить градиент к кнопке в drawer",
+                child: Switch(
+                  value: theme.useGradientForAddAccountButton,
+                  onChanged: (value) =>
+                      theme.setUseGradientForAddAccountButton(value),
+                ),
+              ),
+              if (theme.useGradientForAddAccountButton) ...[
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 1",
+                  subtitle: "Начальный цвет градиента",
+                  color: theme.addAccountButtonGradientColor1,
+                  onColorChanged: (color) =>
+                      theme.setAddAccountButtonGradientColor1(color),
+                ),
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 2",
+                  subtitle: "Конечный цвет градиента",
+                  color: theme.addAccountButtonGradientColor2,
+                  onColorChanged: (color) =>
+                      theme.setAddAccountButtonGradientColor2(color),
+                ),
+              ],
+              const Divider(height: 24),
+              _CustomSettingTile(
+                icon: Icons.view_headline,
+                title: "Фон верхней панели",
+                subtitle: "Выберите тип фона для AppBar (поиск, Сферум и т.д.)",
+                child: DropdownButton<AppBarBackgroundType>(
+                  value: theme.appBarBackgroundType,
+                  underline: const SizedBox.shrink(),
+                  onChanged: (value) {
+                    if (value != null) theme.setAppBarBackgroundType(value);
+                  },
+                  items: AppBarBackgroundType.values.map((type) {
+                    return DropdownMenuItem(
+                      value: type,
+                      child: Text(type.displayName),
+                    );
+                  }).toList(),
+                ),
+              ),
+              if (theme.appBarBackgroundType ==
+                  AppBarBackgroundType.gradient) ...[
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 1",
+                  subtitle: "Начальный цвет градиента",
+                  color: theme.appBarGradientColor1,
+                  onColorChanged: (color) =>
+                      theme.setAppBarGradientColor1(color),
+                ),
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 2",
+                  subtitle: "Конечный цвет градиента",
+                  color: theme.appBarGradientColor2,
+                  onColorChanged: (color) =>
+                      theme.setAppBarGradientColor2(color),
+                ),
+              ],
+              if (theme.appBarBackgroundType == AppBarBackgroundType.image) ...[
+                const Divider(height: 24),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text("Выбрать изображение"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final picker = ImagePicker();
+                    final image = await picker.pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    if (image != null) {
+                      theme.setAppBarImagePath(image.path);
+                    }
+                  },
+                ),
+                if (theme.appBarImagePath?.isNotEmpty == true) ...[
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                    ),
+                    title: const Text(
+                      "Удалить изображение",
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
+                    onTap: () => theme.setAppBarImagePath(null),
+                  ),
+                ],
+              ],
+              const Divider(height: 24),
+              _CustomSettingTile(
+                icon: Icons.folder,
+                title: "Фон панели папок",
+                subtitle: "Выберите тип фона для панели с именами папок",
+                child: DropdownButton<FolderTabsBackgroundType>(
+                  value: theme.folderTabsBackgroundType,
+                  underline: const SizedBox.shrink(),
+                  onChanged: (value) {
+                    if (value != null) theme.setFolderTabsBackgroundType(value);
+                  },
+                  items: FolderTabsBackgroundType.values.map((type) {
+                    return DropdownMenuItem(
+                      value: type,
+                      child: Text(type.displayName),
+                    );
+                  }).toList(),
+                ),
+              ),
+              if (theme.folderTabsBackgroundType ==
+                  FolderTabsBackgroundType.gradient) ...[
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 1",
+                  subtitle: "Начальный цвет градиента",
+                  color: theme.folderTabsGradientColor1,
+                  onColorChanged: (color) =>
+                      theme.setFolderTabsGradientColor1(color),
+                ),
+                const SizedBox(height: 16),
+                _ColorPickerTile(
+                  title: "Цвет 2",
+                  subtitle: "Конечный цвет градиента",
+                  color: theme.folderTabsGradientColor2,
+                  onColorChanged: (color) =>
+                      theme.setFolderTabsGradientColor2(color),
+                ),
+              ],
+              if (theme.folderTabsBackgroundType ==
+                  FolderTabsBackgroundType.image) ...[
+                const Divider(height: 24),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text("Выбрать изображение"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final picker = ImagePicker();
+                    final image = await picker.pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    if (image != null) {
+                      theme.setFolderTabsImagePath(image.path);
+                    }
+                  },
+                ),
+                if (theme.folderTabsImagePath?.isNotEmpty == true) ...[
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                    ),
+                    title: const Text(
+                      "Удалить изображение",
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
+                    onTap: () => theme.setFolderTabsImagePath(null),
+                  ),
+                ],
+              ],
+            ],
+          ),
+          const SizedBox(height: 24),
           _ModernSection(
             title: "Панели чата",
             children: [
               // Предпросмотр панелей
               _PanelsPreview(),
               const SizedBox(height: 16),
-              
+
               // Галочка включения эффекта стекла
               _CustomSettingTile(
                 icon: Icons.tune,
@@ -535,7 +860,7 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              
+
               // Развернуть настройки
               _ExpandableSection(
                 title: "Настройки",
@@ -1388,7 +1713,6 @@ class _ChatWallpaperPreview extends StatelessWidget {
           );
         }
       case ChatWallpaperType.video:
-
         if (Platform.isWindows) {
           return Container(
             color: isDarkTheme ? Colors.grey[850] : Colors.grey[200],
@@ -1572,7 +1896,10 @@ class _ExpandableSectionState extends State<_ExpandableSection> {
           onTap: () => setState(() => _isExpanded = !_isExpanded),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 4.0),
+            padding: const EdgeInsets.symmetric(
+              vertical: 12.0,
+              horizontal: 4.0,
+            ),
             child: Row(
               children: [
                 Text(
@@ -1591,10 +1918,7 @@ class _ExpandableSectionState extends State<_ExpandableSection> {
             ),
           ),
         ),
-        if (_isExpanded) ...[
-          const SizedBox(height: 8),
-          ...widget.children,
-        ],
+        if (_isExpanded) ...[const SizedBox(height: 8), ...widget.children],
       ],
     );
   }
@@ -1646,10 +1970,7 @@ class _MessageBubblesPreview extends StatelessWidget {
             children: [
               const Spacer(),
               Expanded(
-                child: ChatMessageBubble(
-                  message: mockMyMessage,
-                  isMe: true,
-                ),
+                child: ChatMessageBubble(message: mockMyMessage, isMe: true),
               ),
             ],
           ),
@@ -1708,16 +2029,10 @@ class _DialogPreview extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colors.surface.withOpacity(theme.profileDialogOpacity),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: colors.outline.withOpacity(0.2),
-                  ),
+                  border: Border.all(color: colors.outline.withOpacity(0.2)),
                 ),
                 child: Center(
-                  child: Icon(
-                    Icons.person,
-                    color: colors.onSurface,
-                    size: 32,
-                  ),
+                  child: Icon(Icons.person, color: colors.onSurface, size: 32),
                 ),
               ),
             ),
@@ -1831,7 +2146,9 @@ class _PanelsPreview extends StatelessWidget {
                       ),
                       child: Container(
                         height: 30,
-                        color: colors.surface.withOpacity(theme.bottomBarOpacity),
+                        color: colors.surface.withOpacity(
+                          theme.bottomBarOpacity,
+                        ),
                         child: Row(
                           children: [
                             const SizedBox(width: 12),

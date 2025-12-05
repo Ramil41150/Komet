@@ -2000,10 +2000,40 @@ class _ChatsScreenState extends State<ChatsScreen>
     if (widget.hasScaffold) {
       return Builder(
         builder: (context) {
+          final theme = context.watch<ThemeProvider>();
+          
+          BoxDecoration? chatsListDecoration;
+          if (theme.chatsListBackgroundType == ChatsListBackgroundType.gradient) {
+            chatsListDecoration = BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.chatsListGradientColor1,
+                  theme.chatsListGradientColor2,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            );
+          } else if (theme.chatsListBackgroundType == ChatsListBackgroundType.image &&
+              theme.chatsListImagePath != null &&
+              theme.chatsListImagePath!.isNotEmpty) {
+            chatsListDecoration = BoxDecoration(
+              image: DecorationImage(
+                image: FileImage(File(theme.chatsListImagePath!)),
+                fit: BoxFit.cover,
+              ),
+            );
+          }
+          
           return Scaffold(
             appBar: _buildAppBar(context),
             drawer: _buildAppDrawer(context),
-            body: Row(children: [Expanded(child: bodyContent)]),
+            body: chatsListDecoration != null
+                ? Container(
+                    decoration: chatsListDecoration,
+                    child: Row(children: [Expanded(child: bodyContent)]),
+                  )
+                : Row(children: [Expanded(child: bodyContent)]),
             floatingActionButton: FloatingActionButton(
               onPressed: () {
                 _showAddMenu(context);
@@ -2048,7 +2078,30 @@ class _ChatsScreenState extends State<ChatsScreen>
                       right: 16.0,
                       bottom: 16.0,
                     ),
-                    decoration: BoxDecoration(color: colors.primaryContainer),
+                    decoration: () {
+                      if (themeProvider.drawerBackgroundType == DrawerBackgroundType.gradient) {
+                        return BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              themeProvider.drawerGradientColor1,
+                              themeProvider.drawerGradientColor2,
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        );
+                      } else if (themeProvider.drawerBackgroundType == DrawerBackgroundType.image &&
+                          themeProvider.drawerImagePath != null &&
+                          themeProvider.drawerImagePath!.isNotEmpty) {
+                        return BoxDecoration(
+                          image: DecorationImage(
+                            image: FileImage(File(themeProvider.drawerImagePath!)),
+                            fit: BoxFit.cover,
+                          ),
+                        );
+                      }
+                      return BoxDecoration(color: colors.primaryContainer);
+                    }(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -2273,18 +2326,32 @@ class _ChatsScreenState extends State<ChatsScreen>
                                     );
                                   }).toList(),
 
-                                ListTile(
-                                  leading: const Icon(Icons.add_circle_outline),
-                                  title: const Text('Добавить аккаунт'),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const PhoneEntryScreen(),
-                                      ),
-                                    );
-                                  },
+                                Container(
+                                  decoration: themeProvider.useGradientForAddAccountButton
+                                      ? BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              themeProvider.addAccountButtonGradientColor1,
+                                              themeProvider.addAccountButtonGradientColor2,
+                                            ],
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                          ),
+                                        )
+                                      : null,
+                                  child: ListTile(
+                                    leading: const Icon(Icons.add_circle_outline),
+                                    title: const Text('Добавить аккаунт'),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const PhoneEntryScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
                               ],
                             )
@@ -2296,89 +2363,90 @@ class _ChatsScreenState extends State<ChatsScreen>
             },
           ),
           Expanded(
-            child: Column(
-              children: [
-                _buildAccountsSection(context, colors),
-                ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: const Text('Мой профиль'),
-                  onTap: () {
-                    Navigator.pop(context); // Закрыть Drawer
-                    _navigateToProfileEdit(); // Этот метод у вас уже есть
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.call_outlined),
-                  title: const Text('Звонки'),
-                  onTap: () {
-                    Navigator.pop(context); // Закрыть Drawer
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const CallsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.music_note),
-                  title: const Text('Музыка'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const MusicLibraryScreen(),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: _isReconnecting
-                      ? SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              colors.primary,
+            child: () {
+              final menuColumn = Column(
+                children: [
+                  _buildAccountsSection(context, colors),
+                  ListTile(
+                    leading: const Icon(Icons.person_outline),
+                    title: const Text('Мой профиль'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToProfileEdit();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.call_outlined),
+                    title: const Text('Звонки'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const CallsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.music_note),
+                    title: const Text('Музыка'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const MusicLibraryScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: _isReconnecting
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                colors.primary,
+                              ),
                             ),
-                          ),
-                        )
-                      : const Icon(Icons.refresh),
-                  title: const Text('Переподключиться'),
-                  enabled: !_isReconnecting,
-                  onTap: () async {
-                    if (_isReconnecting) return;
+                          )
+                        : const Icon(Icons.refresh),
+                    title: const Text('Переподключиться'),
+                    enabled: !_isReconnecting,
+                    onTap: () async {
+                      if (_isReconnecting) return;
 
-                    setState(() {
-                      _isReconnecting = true;
-                    });
+                      setState(() {
+                        _isReconnecting = true;
+                      });
 
-                    try {
-                      await ApiService.instance.performFullReconnection();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              'Переподключение выполнено успешно',
+                      try {
+                        await ApiService.instance.performFullReconnection();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'Переподключение выполнено успешно',
+                              ),
+                              backgroundColor: colors.primaryContainer,
+                              duration: const Duration(seconds: 2),
                             ),
-                            backgroundColor: colors.primaryContainer,
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                        Navigator.pop(context);
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Ошибка переподключения: $e'),
-                            backgroundColor: colors.error,
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                      }
-                    } finally {
-                      if (mounted) {
+                          );
+                          Navigator.pop(context);
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Ошибка переподключения: $e'),
+                              backgroundColor: colors.error,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
                         setState(() {
                           _isReconnecting = false;
                         });
@@ -2428,21 +2496,49 @@ class _ChatsScreenState extends State<ChatsScreen>
                     }
                   },
                 ),
-
                 const Spacer(),
-
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 ListTile(
                   leading: Icon(Icons.logout, color: colors.error),
                   title: Text('Выйти', style: TextStyle(color: colors.error)),
                   onTap: () {
-                    Navigator.pop(context); // Закрыть Drawer
+                    Navigator.pop(context);
                     _showLogoutDialog();
                   },
                 ),
-                const SizedBox(height: 8), // Небольшой отступ снизу
+                const SizedBox(height: 8),
               ],
-            ),
+            );
+
+            if (themeProvider.drawerBackgroundType == DrawerBackgroundType.gradient) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      themeProvider.drawerGradientColor2,
+                      themeProvider.drawerGradientColor1,
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                child: menuColumn,
+              );
+            } else if (themeProvider.drawerBackgroundType == DrawerBackgroundType.image &&
+                themeProvider.drawerImagePath != null &&
+                themeProvider.drawerImagePath!.isNotEmpty) {
+              return Container(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: FileImage(File(themeProvider.drawerImagePath!)),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: menuColumn,
+              );
+            }
+            return menuColumn;
+          }(),
           ),
         ],
       ),
@@ -3035,14 +3131,46 @@ class _ChatsScreenState extends State<ChatsScreen>
       ),
     ];
 
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: colors.surface,
+    final themeProvider = context.watch<ThemeProvider>();
+    
+    BoxDecoration? folderTabsDecoration;
+    if (themeProvider.folderTabsBackgroundType == FolderTabsBackgroundType.gradient) {
+      folderTabsDecoration = BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            themeProvider.folderTabsGradientColor1,
+            themeProvider.folderTabsGradientColor2,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         border: Border(
           bottom: BorderSide(color: colors.outline.withOpacity(0.2), width: 1),
         ),
-      ),
+      );
+    } else if (themeProvider.folderTabsBackgroundType == FolderTabsBackgroundType.image &&
+        themeProvider.folderTabsImagePath != null &&
+        themeProvider.folderTabsImagePath!.isNotEmpty) {
+      folderTabsDecoration = BoxDecoration(
+        image: DecorationImage(
+          image: FileImage(File(themeProvider.folderTabsImagePath!)),
+          fit: BoxFit.cover,
+        ),
+        border: Border(
+          bottom: BorderSide(color: colors.outline.withOpacity(0.2), width: 1),
+        ),
+      );
+    }
+
+    return Container(
+      height: 48,
+      decoration: folderTabsDecoration ??
+          BoxDecoration(
+            color: colors.surface,
+            border: Border(
+              bottom: BorderSide(color: colors.outline.withOpacity(0.2), width: 1),
+            ),
+          ),
       child: Stack(
         children: [
           Row(
@@ -3751,9 +3879,36 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   AppBar _buildAppBar(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final themeProvider = context.watch<ThemeProvider>();
+
+    BoxDecoration? appBarDecoration;
+    if (themeProvider.appBarBackgroundType == AppBarBackgroundType.gradient) {
+      appBarDecoration = BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            themeProvider.appBarGradientColor1,
+            themeProvider.appBarGradientColor2,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      );
+    } else if (themeProvider.appBarBackgroundType == AppBarBackgroundType.image &&
+        themeProvider.appBarImagePath != null &&
+        themeProvider.appBarImagePath!.isNotEmpty) {
+      appBarDecoration = BoxDecoration(
+        image: DecorationImage(
+          image: FileImage(File(themeProvider.appBarImagePath!)),
+          fit: BoxFit.cover,
+        ),
+      );
+    }
 
     return AppBar(
       titleSpacing: 4.0,
+      flexibleSpace: appBarDecoration != null
+          ? Container(decoration: appBarDecoration)
+          : null,
 
       leading: _isSearchExpanded
           ? IconButton(

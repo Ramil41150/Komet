@@ -6,6 +6,7 @@ import 'package:gwid/screens/settings/settings_screen.dart';
 import 'package:gwid/screens/phone_entry_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:gwid/utils/theme_provider.dart';
+import 'package:gwid/api/api_service.dart';
 
 class ProfileMenuDialog extends StatefulWidget {
   final Profile? myProfile;
@@ -195,12 +196,26 @@ class _ProfileMenuDialogState extends State<ProfileMenuDialog> {
                       onTap: () async {
                         if (context.mounted) {
                           Navigator.of(context).pop();
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (_) => const PhoneEntryScreen(),
-                            ),
-                            (route) => false,
-                          );
+                          try {
+                            await ApiService.instance.logout();
+                            if (context.mounted) {
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                  builder: (_) => const PhoneEntryScreen(),
+                                ),
+                                (route) => false,
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Ошибка при выходе: $e'),
+                                  backgroundColor: Theme.of(context).colorScheme.error,
+                                ),
+                              );
+                            }
+                          }
                         }
                       },
                     ),
