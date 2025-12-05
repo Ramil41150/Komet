@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
@@ -3085,11 +3086,23 @@ class _ChatsScreenState extends State<ChatsScreen>
       );
     }
 
-    return ListView.builder(
-      itemCount: chatsForFolder.length,
-      itemBuilder: (context, index) {
-        return _buildChatListItem(chatsForFolder[index], index, folder);
-      },
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(
+        dragDevices: {
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.touch,
+          PointerDeviceKind.stylus,
+          PointerDeviceKind.trackpad,
+        },
+      ),
+      child: Scrollbar(
+        child: ListView.builder(
+          itemCount: chatsForFolder.length,
+          itemBuilder: (context, index) {
+            return _buildChatListItem(chatsForFolder[index], index, folder);
+          },
+        ),
+      ),
     );
   }
 

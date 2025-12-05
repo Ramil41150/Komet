@@ -294,14 +294,28 @@ class _PulseAnimatedTextState extends State<_PulseAnimatedText>
     if (hexClean.startsWith('#')) {
       hexClean = hexClean.substring(1);
     }
-    if (hexClean.length == 6) {
-      try {
-        return Color(int.parse('FF$hexClean', radix: 16));
-      } catch (e) {
-        return Colors.red;
-      }
+
+    if (hexClean.isEmpty) {
+      return Colors.red;
     }
-    return Colors.red;
+
+    if (hexClean.length == 3) {
+      hexClean = '${hexClean[0]}${hexClean[0]}${hexClean[1]}${hexClean[1]}${hexClean[2]}${hexClean[2]}';
+    } else if (hexClean.length == 4) {
+      hexClean = '${hexClean[0]}${hexClean[0]}${hexClean[1]}${hexClean[1]}${hexClean[2]}${hexClean[2]}${hexClean[3]}${hexClean[3]}';
+    } else if (hexClean.length == 5) {
+      hexClean = '0$hexClean';
+    } else if (hexClean.length < 6) {
+      hexClean = hexClean.padRight(6, '0');
+    } else if (hexClean.length > 6) {
+      hexClean = hexClean.substring(0, 6);
+    }
+
+    try {
+      return Color(int.parse('FF$hexClean', radix: 16));
+    } catch (e) {
+      return Colors.red;
+    }
   }
 
   @override
@@ -324,10 +338,13 @@ class _PulseAnimatedTextState extends State<_PulseAnimatedText>
       return Text(text);
     }
 
-    final messageText = afterHash.substring(
-      quoteIndex + 1,
-      afterHash.length - 1,
-    );
+    final textStart = quoteIndex + 1;
+    final secondQuote = afterHash.indexOf("'", textStart);
+    if (secondQuote == -1) {
+      return Text(text);
+    }
+
+    final messageText = afterHash.substring(textStart, secondQuote);
     final baseColor = _pulseColor ?? Colors.red;
 
     return AnimatedBuilder(
@@ -4362,7 +4379,7 @@ class ChatMessageBubble extends StatelessWidget {
         const prefix = "komet.cosmetic.pulse#";
         final afterHash = text.substring(nextMarker + prefix.length);
         final quoteIndex = afterHash.indexOf("'");
-        if (quoteIndex != -1 && quoteIndex >= 6) {
+        if (quoteIndex != -1 && quoteIndex > 0) {
           final hexStr = afterHash.substring(0, quoteIndex).trim();
           final textStart = quoteIndex + 1;
           final secondQuote = afterHash.indexOf("'", textStart);
@@ -4376,18 +4393,20 @@ class ChatMessageBubble extends StatelessWidget {
                 nextMarker +
                 prefix.length +
                 secondQuote +
-                2; // +2 для двух кавычек
+                2;
             continue;
           }
         }
-        // Если парсинг не удался, добавляем как обычный текст
+        final safeEnd = (nextMarker + prefix.length + 10 < text.length)
+            ? nextMarker + prefix.length + 10
+            : text.length;
         segments.add(
           _KometSegment(
-            text.substring(nextMarker, nextMarker + prefix.length + 10),
+            text.substring(nextMarker, safeEnd),
             _KometSegmentType.normal,
           ),
         );
-        index = nextMarker + prefix.length + 10;
+        index = safeEnd;
       } else if (markerType == "galaxy") {
         const prefix = "komet.cosmetic.galaxy'";
         final textStart = nextMarker + prefix.length;
@@ -4636,22 +4655,36 @@ class ChatMessageBubble extends StatelessWidget {
       hex = hex.substring(1);
     }
 
-    // Ожидаем 6 или 8 символов; всё остальное считаем "херовым" цветом.
-    final isValidLength = hex.length == 6 || hex.length == 8;
     final isValidChars = RegExp(r'^[0-9a-fA-F]+$').hasMatch(hex);
-    if (!isValidLength || !isValidChars) {
-      return const Color(0xFFFF0000); // дефолт – красный
+    if (!isValidChars || hex.isEmpty) {
+      return fallbackColor ?? const Color(0xFFFF0000);
+    }
+
+    if (hex.length == 3) {
+      hex = '${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}';
+    } else if (hex.length == 4) {
+      hex = '${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}';
+    } else if (hex.length == 5) {
+      hex = '0$hex';
+    } else if (hex.length == 6) {
+    } else if (hex.length == 8) {
+    } else {
+      if (hex.length < 6) {
+        hex = hex.padRight(6, '0');
+      } else {
+        hex = hex.substring(0, 6);
+      }
     }
 
     if (hex.length == 6) {
-      hex = 'FF$hex'; // добавляем альфу
+      hex = 'FF$hex';
     }
 
     try {
       final value = int.parse(hex, radix: 16);
       return Color(value);
     } catch (_) {
-      return const Color(0xFFFF0000);
+      return fallbackColor ?? const Color(0xFFFF0000);
     }
   }
 
