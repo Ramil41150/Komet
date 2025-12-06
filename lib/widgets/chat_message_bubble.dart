@@ -4780,19 +4780,36 @@ class _LongPressContextMenuWrapper extends StatefulWidget {
 
 class _LongPressContextMenuWrapperState
     extends State<_LongPressContextMenuWrapper> {
-  static const Duration _longPressDuration = Duration(seconds: 1);
+  static const Duration _longPressDuration = Duration(milliseconds: 700);
+  static const double _maxMovementDistance = 15.0; // Максимальное расстояние для открытия панели
 
   Timer? _timer;
+  Offset? _initialPosition;
 
   void _onPointerDown(PointerDownEvent event) {
+    _initialPosition = event.position;
     _timer?.cancel();
     _timer = Timer(_longPressDuration, () {
-      widget.onShowMenu(event.position);
+      if (_initialPosition != null) {
+        widget.onShowMenu(_initialPosition!);
+      }
     });
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_initialPosition != null) {
+      final distance = (event.position - _initialPosition!).distance;
+      // Если палец переместился на значительное расстояние, отменяем открытие панели
+      if (distance > _maxMovementDistance) {
+        _timer?.cancel();
+        _initialPosition = null;
+      }
+    }
   }
 
   void _onPointerUpOrCancel(PointerEvent event) {
     _timer?.cancel();
+    _initialPosition = null;
   }
 
   @override
@@ -4805,6 +4822,7 @@ class _LongPressContextMenuWrapperState
   Widget build(BuildContext context) {
     return Listener(
       onPointerDown: _onPointerDown,
+      onPointerMove: _onPointerMove,
       onPointerUp: _onPointerUpOrCancel,
       onPointerCancel: _onPointerUpOrCancel,
       child: widget.child,
