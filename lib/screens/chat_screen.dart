@@ -507,7 +507,7 @@ class _ChatScreenState extends State<ChatScreen> {
       false; // TODO: hook real state later
   ChatEncryptionConfig? _encryptionConfigForCurrentChat;
   bool _sendEncryptedForCurrentChat = true;
-  bool _specialMessagesEnabled = false;
+  bool _specialMessagesEnabled = true;
 
   bool _formatWarningVisible = false;
 
@@ -767,7 +767,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _specialMessagesEnabled =
-          prefs.getBool('special_messages_enabled') ?? false;
+          prefs.getBool('special_messages_enabled') ?? true;
     });
   }
 

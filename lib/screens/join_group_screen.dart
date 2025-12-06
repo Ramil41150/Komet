@@ -37,22 +37,33 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         });
 
         final payload = message['payload'];
-        final chat = payload['chat'];
+        final chat = payload?['chat'];
         final chatTitle = chat?['title'] ?? 'Группа';
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Успешно присоединились к группе "$chatTitle"!'),
-            backgroundColor: Colors.green,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(10),
-          ),
-        );
+        ApiService.instance.clearChatsCache();
 
-        Navigator.of(context).pop();
+        Future.microtask(() {
+          if (!mounted) return;
+          try {
+            if (Navigator.of(context, rootNavigator: false).canPop()) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Успешно присоединились к группе "$chatTitle"!'),
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.all(10),
+                ),
+              );
+
+              Navigator.of(context).pop();
+            }
+          } catch (e) {
+            print('Ошибка при закрытии экрана присоединения: $e');
+          }
+        });
       }
 
       // Обработка успешной подписки на канал (opcode 57)
@@ -61,19 +72,28 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
           _isLoading = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Успешно подписались на канал!'),
-            backgroundColor: Colors.green,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(10),
-          ),
-        );
+        Future.microtask(() {
+          if (!mounted) return;
+          try {
+            if (Navigator.of(context, rootNavigator: false).canPop()) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Успешно подписались на канал!'),
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.all(10),
+                ),
+              );
 
-        Navigator.of(context).pop();
+              Navigator.of(context).pop();
+            }
+          } catch (e) {
+            print('Ошибка при закрытии экрана подписки на канал: $e');
+          }
+        });
       }
 
       // Обработка ошибки подписки на канал (opcode 57)
@@ -230,9 +250,121 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       _isLoading = true;
     });
 
+    bool successHandled = false;
+    Timer? timeoutTimer;
+
+    timeoutTimer = Timer(const Duration(seconds: 5), () {
+      if (!successHandled && mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ApiService.instance.clearChatsCache();
+        
+        Future.microtask(() {
+          if (!mounted) return;
+          try {
+            if (Navigator.of(context, rootNavigator: false).canPop()) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Присоединение выполнено. Обновите список чатов.'),
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.all(10),
+                ),
+              );
+              Navigator.of(context).pop();
+            }
+          } catch (e) {
+            print('Ошибка при закрытии экрана (таймаут): $e');
+          }
+        });
+      }
+    });
+
+    StreamSubscription? tempSubscription;
+    
+    tempSubscription = ApiService.instance.messages.listen((message) {
+      if (message['type'] == 'group_join_success' && !successHandled) {
+        successHandled = true;
+        timeoutTimer?.cancel();
+        tempSubscription?.cancel();
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          final payload = message['payload'];
+          final chat = payload?['chat'];
+          final chatTitle = chat?['title'] ?? 'Группа';
+          ApiService.instance.clearChatsCache();
+          
+          Future.microtask(() {
+            if (!mounted) return;
+            try {
+              if (Navigator.of(context, rootNavigator: false).canPop()) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Успешно присоединились к группе "$chatTitle"!'),
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.all(10),
+                  ),
+                );
+                Navigator.of(context).pop();
+              }
+            } catch (e) {
+              print('Ошибка при закрытии экрана присоединения (temp): $e');
+            }
+          });
+        }
+      }
+    });
+
     try {
       await ApiService.instance.joinGroupByLink(processedLink);
+      
+      if (!successHandled) {
+        await Future.delayed(const Duration(seconds: 2));
+        if (!successHandled && mounted) {
+          timeoutTimer.cancel();
+          tempSubscription.cancel();
+          setState(() {
+            _isLoading = false;
+          });
+          ApiService.instance.clearChatsCache();
+          
+          Future.microtask(() {
+            if (!mounted) return;
+            try {
+              if (Navigator.of(context, rootNavigator: false).canPop()) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Присоединение выполнено. Обновите список чатов.'),
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.all(10),
+                  ),
+                );
+                Navigator.of(context).pop();
+              }
+            } catch (e) {
+              print('Ошибка при закрытии экрана (задержка): $e');
+            }
+          });
+        }
+      }
     } catch (e) {
+      timeoutTimer.cancel();
+      tempSubscription.cancel();
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });

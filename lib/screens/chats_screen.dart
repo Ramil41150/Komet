@@ -642,6 +642,37 @@ class _ChatsScreenState extends State<ChatsScreen>
         }
       }
 
+      // Присоединение к группе по ссылке (opcode 89, cmd 1) — добавляем чат в список
+      if (opcode == 89 && cmd == 1) {
+        final chatJson = payload['chat'] as Map<String, dynamic>?;
+        if (chatJson != null) {
+          final chatType = chatJson['type'] as String?;
+          if (chatType == 'CHAT') {
+            print('Получен ответ на присоединение к группе (opcode 89): $payload');
+            final newChat = Chat.fromJson(chatJson);
+
+            ApiService.instance.updateChatInCacheFromJson(chatJson);
+            if (mounted) {
+              setState(() {
+                final existingIndex = _allChats.indexWhere(
+                  (chat) => chat.id == newChat.id,
+                );
+
+                if (existingIndex != -1) {
+                  _allChats[existingIndex] = newChat;
+                } else {
+                  final savedIndex = _allChats.indexWhere(_isSavedMessages);
+                  final insertIndex = savedIndex >= 0 ? savedIndex + 1 : 0;
+                  _allChats.insert(insertIndex, newChat);
+                }
+
+                _filterChats();
+              });
+            }
+          }
+        }
+      }
+
       // Изменение параметров чата (rename, invite‑link и т.п.) приходит с opcode 55.
       // В payload обычно лежит обновленный объект chat.
       if (opcode == 55 && cmd == 1) {

@@ -16,7 +16,7 @@ class _BypassScreenState extends State<BypassScreen> {
   // 0 – обходы, 1 – фишки
   int _selectedTab = 1;
   bool _kometAutoCompleteEnabled = false;
-  bool _specialMessagesEnabled = false;
+  bool _specialMessagesEnabled = true;
   bool _isLoadingSettings = true;
 
   @override
@@ -31,7 +31,7 @@ class _BypassScreenState extends State<BypassScreen> {
       _kometAutoCompleteEnabled =
           prefs.getBool('komet_auto_complete_enabled') ?? false;
       _specialMessagesEnabled =
-          prefs.getBool('special_messages_enabled') ?? false;
+          prefs.getBool('special_messages_enabled') ?? true;
       _isLoadingSettings = false;
     });
   }

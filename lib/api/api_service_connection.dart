@@ -530,12 +530,30 @@ extension ApiServiceConnection on ApiService {
               decodedMessage['opcode'] == 89 &&
               decodedMessage['cmd'] == 1) {
             final payload = decodedMessage['payload'];
-            print('Вход в канал успешен: $payload');
-
-            _messageController.add({
-              'type': 'channel_entered',
-              'payload': payload,
-            });
+            final chat = payload['chat'] as Map<String, dynamic>?;
+            
+            if (chat != null) {
+              final chatType = chat['type'] as String?;
+              if (chatType == 'CHAT') {
+                print('Успешно присоединились к группе (opcode 89): $payload');
+                _messageController.add({
+                  'type': 'group_join_success',
+                  'payload': payload,
+                });
+              } else {
+                print('Вход в канал успешен: $payload');
+                _messageController.add({
+                  'type': 'channel_entered',
+                  'payload': payload,
+                });
+              }
+            } else {
+              print('Вход в канал успешен: $payload');
+              _messageController.add({
+                'type': 'channel_entered',
+                'payload': payload,
+              });
+            }
           }
 
           if (decodedMessage is Map &&
