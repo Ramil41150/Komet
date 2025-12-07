@@ -672,6 +672,11 @@ class ThemeProvider with ChangeNotifier {
 
   bool _blockBypass = false;
   bool _highQualityPhotos = true;
+  bool _optimization = false;
+  bool _showFpsOverlay = false;
+  
+  // Сохраненное состояние перед включением оптимизации
+  CustomThemePreset? _savedThemeBeforeOptimization;
 
   AppTheme get appTheme => _activeTheme.appTheme;
   Color get accentColor => _activeTheme.accentColor;
@@ -698,7 +703,7 @@ class ThemeProvider with ChangeNotifier {
   double get chatWallpaperBlurSigma => _activeTheme.chatWallpaperBlurSigma;
   double get chatWallpaperImageBlur => _activeTheme.chatWallpaperImageBlur;
 
-  bool get useGlassPanels => _activeTheme.useGlassPanels;
+  bool get useGlassPanels => _optimization ? false : _activeTheme.useGlassPanels;
   double get topBarBlur => _activeTheme.topBarBlur;
   double get topBarOpacity => _activeTheme.topBarOpacity;
   double get bottomBarBlur => _activeTheme.bottomBarBlur;
@@ -757,21 +762,21 @@ class ThemeProvider with ChangeNotifier {
   bool get debugReadOnEnter => _debugReadOnEnter;
   bool get debugReadOnAction => _debugReadOnAction;
 
-  TransitionOption get chatTransition => _activeTheme.ultraOptimizeChats
+  TransitionOption get chatTransition => (_optimization || _activeTheme.ultraOptimizeChats)
       ? TransitionOption.systemDefault
       : _activeTheme.chatTransition;
-  TransitionOption get tabTransition => _activeTheme.ultraOptimizeChats
+  TransitionOption get tabTransition => (_optimization || _activeTheme.ultraOptimizeChats)
       ? TransitionOption.systemDefault
       : _activeTheme.tabTransition;
-  TransitionOption get messageTransition => _activeTheme.ultraOptimizeChats
+  TransitionOption get messageTransition => (_optimization || _activeTheme.ultraOptimizeChats)
       ? TransitionOption.systemDefault
       : _activeTheme.messageTransition;
-  TransitionOption get extraTransition => _activeTheme.ultraOptimizeChats
+  TransitionOption get extraTransition => (_optimization || _activeTheme.ultraOptimizeChats)
       ? TransitionOption.systemDefault
       : _activeTheme.extraTransition;
   double get messageSlideDistance => _activeTheme.messageSlideDistance;
   double get extraAnimationStrength => _activeTheme.extraAnimationStrength;
-  bool get animatePhotoMessages => _activeTheme.ultraOptimizeChats
+  bool get animatePhotoMessages => (_optimization || _activeTheme.ultraOptimizeChats)
       ? false
       : _activeTheme.animatePhotoMessages;
   bool get optimizeChats => _activeTheme.optimizeChats;
@@ -804,6 +809,8 @@ class ThemeProvider with ChangeNotifier {
   Color get folderTabsGradientColor2 => _activeTheme.folderTabsGradientColor2;
   bool get highQualityPhotos => _highQualityPhotos;
   bool get blockBypass => _blockBypass;
+  bool get optimization => _optimization;
+  bool get showFpsOverlay => _showFpsOverlay;
 
   List<CustomThemePreset> get savedThemes => _savedThemes;
   CustomThemePreset get activeTheme => _activeTheme;
@@ -867,6 +874,8 @@ class ThemeProvider with ChangeNotifier {
     _debugReadOnAction = prefs.getBool('debug_read_on_action') ?? true;
     _highQualityPhotos = prefs.getBool('high_quality_photos') ?? true;
     _blockBypass = prefs.getBool('block_bypass') ?? false;
+    _optimization = prefs.getBool('optimization') ?? false;
+    _showFpsOverlay = prefs.getBool('show_fps_overlay') ?? false;
 
     await loadChatSpecificWallpapers();
 
@@ -1448,6 +1457,71 @@ class ThemeProvider with ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('block_bypass', _blockBypass);
+  }
+
+  Future<void> setShowFpsOverlay(bool value) async {
+    _showFpsOverlay = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('show_fps_overlay', _showFpsOverlay);
+  }
+
+  Future<void> setOptimization(bool value) async {
+    if (value && !_optimization) {
+      // Включаем оптимизацию - сохраняем текущее состояние
+      _savedThemeBeforeOptimization = _activeTheme;
+      
+      // Применяем оптимизированные настройки
+      _activeTheme = _activeTheme.copyWith(
+        // Отключаем все анимации
+        chatTransition: TransitionOption.systemDefault,
+        tabTransition: TransitionOption.systemDefault,
+        messageTransition: TransitionOption.systemDefault,
+        extraTransition: TransitionOption.systemDefault,
+        animatePhotoMessages: false,
+        // Отключаем glass panels
+        useGlassPanels: false,
+        // Сбрасываем настройки кастомизации к дефолтным
+        useCustomChatWallpaper: false,
+        chatsListBackgroundType: ChatsListBackgroundType.none,
+        drawerBackgroundType: DrawerBackgroundType.none,
+        appBarBackgroundType: AppBarBackgroundType.none,
+        folderTabsBackgroundType: FolderTabsBackgroundType.none,
+        useGradientForChatsList: false,
+        useGradientForDrawer: false,
+        useGradientForAppBar: false,
+        useGradientForFolderTabs: false,
+        useGradientForAddAccountButton: false,
+        // Сбрасываем размытия и прозрачности
+        topBarBlur: 0.0,
+        bottomBarBlur: 0.0,
+        profileDialogBlur: 0.0,
+        messageMenuBlur: 0.0,
+        chatWallpaperImageBlur: 0.0,
+        messageBackgroundBlur: 0.0,
+        // Сбрасываем прозрачности к более непрозрачным значениям
+        topBarOpacity: 1.0,
+        bottomBarOpacity: 1.0,
+        profileDialogOpacity: 1.0,
+        messageMenuOpacity: 1.0,
+        messageBubbleOpacity: 0.0, // Полностью непрозрачные
+        messageTextOpacity: 1.0,
+      );
+      
+      await _saveActiveTheme();
+    } else if (!value && _optimization) {
+      // Выключаем оптимизацию - восстанавливаем сохраненное состояние
+      if (_savedThemeBeforeOptimization != null) {
+        _activeTheme = _savedThemeBeforeOptimization!;
+        _savedThemeBeforeOptimization = null;
+        await _saveActiveTheme();
+      }
+    }
+    
+    _optimization = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('optimization', _optimization);
   }
 
   Future<void> setUseDesktopLayout(bool value) async {

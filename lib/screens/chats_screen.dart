@@ -34,6 +34,7 @@ import 'package:gwid/widgets/contact_name_widget.dart';
 import 'package:gwid/widgets/contact_avatar_widget.dart';
 import 'package:gwid/services/account_manager.dart';
 import 'package:gwid/models/account.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class SearchResult {
   final Chat chat;
@@ -1089,7 +1090,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         leading: CircleAvatar(
           radius: 16,
           backgroundImage: channel.photoBaseUrl != null
-              ? NetworkImage(channel.photoBaseUrl!)
+              ? CachedNetworkImageProvider(channel.photoBaseUrl!)
               : null,
           child: channel.photoBaseUrl == null
               ? Text(
@@ -2030,52 +2031,11 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
 
     if (widget.hasScaffold) {
-      return Builder(
-        builder: (context) {
-          final theme = context.watch<ThemeProvider>();
-          
-          BoxDecoration? chatsListDecoration;
-          if (theme.chatsListBackgroundType == ChatsListBackgroundType.gradient) {
-            chatsListDecoration = BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  theme.chatsListGradientColor1,
-                  theme.chatsListGradientColor2,
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            );
-          } else if (theme.chatsListBackgroundType == ChatsListBackgroundType.image &&
-              theme.chatsListImagePath != null &&
-              theme.chatsListImagePath!.isNotEmpty) {
-            chatsListDecoration = BoxDecoration(
-              image: DecorationImage(
-                image: FileImage(File(theme.chatsListImagePath!)),
-                fit: BoxFit.cover,
-              ),
-            );
-          }
-          
-          return Scaffold(
-            appBar: _buildAppBar(context),
-            drawer: _buildAppDrawer(context),
-            body: chatsListDecoration != null
-                ? Container(
-                    decoration: chatsListDecoration,
-                    child: Row(children: [Expanded(child: bodyContent)]),
-                  )
-                : Row(children: [Expanded(child: bodyContent)]),
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                _showAddMenu(context);
-              },
-              tooltip: 'Создать',
-              heroTag: 'create_menu',
-              child: const Icon(Icons.edit),
-            ),
-          );
-        },
+      return _ChatsScreenScaffold(
+        bodyContent: bodyContent,
+        buildAppBar: _buildAppBar,
+        buildAppDrawer: _buildAppDrawer,
+        onAddPressed: () => _showAddMenu(context),
       );
     } else {
       return bodyContent;
@@ -2148,7 +2108,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                                   _isProfileLoading ||
                                       _myProfile?.photoBaseUrl == null
                                   ? null
-                                  : NetworkImage(_myProfile!.photoBaseUrl!),
+                                  : CachedNetworkImageProvider(_myProfile!.photoBaseUrl!),
                               child: _isProfileLoading
                                   ? const SizedBox(
                                       width: 20,
@@ -2259,7 +2219,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                                             : colors.surfaceVariant,
                                         backgroundImage:
                                             account.avatarUrl != null
-                                            ? NetworkImage(account.avatarUrl!)
+                                            ? CachedNetworkImageProvider(account.avatarUrl!)
                                             : null,
                                         child: account.avatarUrl == null
                                             ? Text(
@@ -2727,7 +2687,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         radius: 24,
         backgroundColor: colors.primaryContainer,
         backgroundImage: contact.photoBaseUrl != null
-            ? NetworkImage(contact.photoBaseUrl ?? '')
+            ? CachedNetworkImageProvider(contact.photoBaseUrl ?? '')
             : null,
         child: contact.photoBaseUrl == null
             ? Text(
@@ -2928,7 +2888,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                               backgroundColor: colors.primaryContainer,
                               backgroundImage:
                                   isGroupChat && chat.baseIconUrl != null
-                                  ? NetworkImage(chat.baseIconUrl ?? '')
+                                  ? CachedNetworkImageProvider(chat.baseIconUrl ?? '')
                                   : null,
                               child:
                                   isSavedMessages ||
@@ -3061,81 +3021,30 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   List<Widget> _buildFolderPages() {
     final List<Widget> pages = [
-      _buildChatsListForFolder(null),
-      ..._folders.map((folder) => _buildChatsListForFolder(folder)),
+      _ChatsListPage(
+        key: const ValueKey('folder_null'),
+        folder: null,
+        allChats: _allChats,
+        contacts: _contacts,
+        searchQuery: _searchController.text,
+        buildChatListItem: _buildChatListItem,
+        isSavedMessages: _isSavedMessages,
+      ),
+      ..._folders.map((folder) => _ChatsListPage(
+        key: ValueKey('folder_${folder.id}'),
+        folder: folder,
+        allChats: _allChats,
+        contacts: _contacts,
+        searchQuery: _searchController.text,
+        buildChatListItem: _buildChatListItem,
+        isSavedMessages: _isSavedMessages,
+        chatBelongsToFolder: _chatBelongsToFolder,
+      )),
     ];
 
     return pages;
   }
 
-  Widget _buildChatsListForFolder(ChatFolder? folder) {
-    List<Chat> chatsForFolder = _allChats;
-
-    if (folder != null) {
-      chatsForFolder = _allChats
-          .where((chat) => _chatBelongsToFolder(chat, folder))
-          .toList();
-    }
-
-    chatsForFolder.sort((a, b) {
-      final aIsSaved = _isSavedMessages(a);
-      final bIsSaved = _isSavedMessages(b);
-      if (aIsSaved && !bIsSaved) return -1;
-      if (!aIsSaved && bIsSaved) return 1;
-      if (aIsSaved && bIsSaved) {
-        if (a.id == 0) return -1;
-        if (b.id == 0) return 1;
-      }
-      return 0;
-    });
-
-    final query = _searchController.text.toLowerCase();
-    if (query.isNotEmpty) {
-      chatsForFolder = chatsForFolder.where((chat) {
-        final isSavedMessages = _isSavedMessages(chat);
-        if (isSavedMessages) {
-          return "избранное".contains(query);
-        }
-        final otherParticipantId = chat.participantIds.firstWhere(
-          (id) => id != chat.ownerId,
-          orElse: () => 0,
-        );
-        final contactName =
-            _contacts[otherParticipantId]?.name.toLowerCase() ?? '';
-        return contactName.contains(query);
-      }).toList();
-    }
-
-    if (chatsForFolder.isEmpty) {
-      return Center(
-        child: Text(
-          folder == null ? 'Нет чатов' : 'В этой папке пока нет чатов',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      );
-    }
-
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(
-        dragDevices: {
-          PointerDeviceKind.mouse,
-          PointerDeviceKind.touch,
-          PointerDeviceKind.stylus,
-          PointerDeviceKind.trackpad,
-        },
-      ),
-      child: Scrollbar(
-        child: ListView.builder(
-          itemCount: chatsForFolder.length,
-          itemBuilder: (context, index) {
-            return _buildChatListItem(chatsForFolder[index], index, folder);
-          },
-        ),
-      ),
-    );
-  }
 
   Widget _buildFolderTabs() {
     if (_folderTabController.length <= 1) {
@@ -3923,7 +3832,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   AppBar _buildAppBar(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final themeProvider = context.watch<ThemeProvider>();
+    final themeProvider = context.read<ThemeProvider>();
 
     BoxDecoration? appBarDecoration;
     if (themeProvider.appBarBackgroundType == AppBarBackgroundType.gradient) {
@@ -4521,7 +4430,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               backgroundColor: colors.primaryContainer,
 
               backgroundImage: avatarUrl != null
-                  ? NetworkImage(avatarUrl)
+                  ? CachedNetworkImageProvider(avatarUrl)
                   : null,
 
               child: avatarUrl == null
@@ -4555,6 +4464,8 @@ class _ChatsScreenState extends State<ChatsScreen>
             child: Text(
               title,
               style: const TextStyle(fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -5159,7 +5070,7 @@ class _AddChatsToFolderDialogState extends State<_AddChatsToFolderDialog> {
                             radius: 24,
                             backgroundColor: colors.primaryContainer,
                             backgroundImage: avatarUrl != null
-                                ? NetworkImage(avatarUrl)
+                                ? CachedNetworkImageProvider(avatarUrl)
                                 : null,
                             child: avatarUrl == null
                                 ? (isSavedMessages || isGroupChat || isChannel)
@@ -5188,6 +5099,8 @@ class _AddChatsToFolderDialogState extends State<_AddChatsToFolderDialog> {
                               ? FontStyle.italic
                               : FontStyle.normal,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: isGroupChat && chat.participantIds.length > 2
                           ? Text(
@@ -5449,6 +5362,171 @@ class _ReadSettingsDialogContentState
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Оптимизированный виджет для Scaffold с кешированием декорации
+class _ChatsScreenScaffold extends StatelessWidget {
+  final Widget bodyContent;
+  final PreferredSizeWidget Function(BuildContext) buildAppBar;
+  final Widget Function(BuildContext) buildAppDrawer;
+  final VoidCallback onAddPressed;
+
+  const _ChatsScreenScaffold({
+    required this.bodyContent,
+    required this.buildAppBar,
+    required this.buildAppDrawer,
+    required this.onAddPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ThemeProvider>(
+      builder: (context, theme, _) {
+        // Кешируем декорацию только при изменении настроек
+        BoxDecoration? chatsListDecoration;
+        if (theme.chatsListBackgroundType == ChatsListBackgroundType.gradient) {
+          chatsListDecoration = BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.chatsListGradientColor1,
+                theme.chatsListGradientColor2,
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          );
+        } else if (theme.chatsListBackgroundType == ChatsListBackgroundType.image &&
+            theme.chatsListImagePath != null &&
+            theme.chatsListImagePath!.isNotEmpty) {
+          chatsListDecoration = BoxDecoration(
+            image: DecorationImage(
+              image: FileImage(File(theme.chatsListImagePath!)),
+              fit: BoxFit.cover,
+            ),
+          );
+        }
+
+        return Scaffold(
+          appBar: buildAppBar(context),
+          drawer: buildAppDrawer(context),
+          body: chatsListDecoration != null
+              ? Container(
+                  decoration: chatsListDecoration,
+                  child: Row(children: [Expanded(child: bodyContent)]),
+                )
+              : Row(children: [Expanded(child: bodyContent)]),
+          floatingActionButton: FloatingActionButton(
+            onPressed: onAddPressed,
+            tooltip: 'Создать',
+            heroTag: 'create_menu',
+            child: const Icon(Icons.edit),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// Оптимизированный виджет для страницы папки с AutomaticKeepAliveClientMixin
+class _ChatsListPage extends StatefulWidget {
+  final ChatFolder? folder;
+  final List<Chat> allChats;
+  final Map<int, Contact> contacts;
+  final String searchQuery;
+  final Widget Function(Chat, int, ChatFolder?) buildChatListItem;
+  final bool Function(Chat) isSavedMessages;
+  final bool Function(Chat, ChatFolder)? chatBelongsToFolder;
+
+  const _ChatsListPage({
+    super.key,
+    required this.folder,
+    required this.allChats,
+    required this.contacts,
+    required this.searchQuery,
+    required this.buildChatListItem,
+    required this.isSavedMessages,
+    this.chatBelongsToFolder,
+  });
+
+  @override
+  State<_ChatsListPage> createState() => _ChatsListPageState();
+}
+
+class _ChatsListPageState extends State<_ChatsListPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    
+    List<Chat> chatsForFolder = widget.allChats;
+
+    if (widget.folder != null && widget.chatBelongsToFolder != null) {
+      chatsForFolder = widget.allChats
+          .where((chat) => widget.chatBelongsToFolder!(chat, widget.folder!))
+          .toList();
+    }
+
+    chatsForFolder.sort((a, b) {
+      final aIsSaved = widget.isSavedMessages(a);
+      final bIsSaved = widget.isSavedMessages(b);
+      if (aIsSaved && !bIsSaved) return -1;
+      if (!aIsSaved && bIsSaved) return 1;
+      if (aIsSaved && bIsSaved) {
+        if (a.id == 0) return -1;
+        if (b.id == 0) return 1;
+      }
+      return 0;
+    });
+
+    if (widget.searchQuery.isNotEmpty) {
+      chatsForFolder = chatsForFolder.where((chat) {
+        final isSavedMessages = widget.isSavedMessages(chat);
+        if (isSavedMessages) {
+          return "избранное".contains(widget.searchQuery.toLowerCase());
+        }
+        final otherParticipantId = chat.participantIds.firstWhere(
+          (id) => id != chat.ownerId,
+          orElse: () => 0,
+        );
+        final contactName =
+            widget.contacts[otherParticipantId]?.name.toLowerCase() ?? '';
+        return contactName.contains(widget.searchQuery.toLowerCase());
+      }).toList();
+    }
+
+    if (chatsForFolder.isEmpty) {
+      return Center(
+        child: Text(
+          widget.folder == null ? 'Нет чатов' : 'В этой папке пока нет чатов',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(
+        dragDevices: {
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.touch,
+          PointerDeviceKind.stylus,
+          PointerDeviceKind.trackpad,
+        },
+      ),
+      child: ListView.builder(
+        itemCount: chatsForFolder.length,
+        itemExtent: 72.0, // Фиксированная высота для оптимизации
+        cacheExtent: 500.0, // Кеш для плавной прокрутки
+        itemBuilder: (context, index) {
+          return widget.buildChatListItem(chatsForFolder[index], index, widget.folder);
+        },
       ),
     );
   }

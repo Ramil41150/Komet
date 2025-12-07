@@ -278,22 +278,24 @@ class _UserProfilePanelState extends State<UserProfilePanel> {
                       },
                       colors: colors,
                     ),
-                    _buildActionButton(
-                      icon: Icons.person_add,
-                      label: _isInContacts ? 'В контактах' : 'В контакты',
-                      onPressed: _isInContacts || _isAddingToContacts
-                          ? null
-                          : _handleAddToContacts,
-                      colors: colors,
-                      isLoading: _isAddingToContacts,
-                    ),
-                    _buildActionButton(
-                      icon: Icons.message,
-                      label: 'Написать',
-                      onPressed: _isOpeningChat ? null : _handleWriteMessage,
-                      colors: colors,
-                      isLoading: _isOpeningChat,
-                    ),
+                    if (widget.userId >= 0) ...[
+                      _buildActionButton(
+                        icon: Icons.person_add,
+                        label: _isInContacts ? 'В контактах' : 'В контакты',
+                        onPressed: _isInContacts || _isAddingToContacts
+                            ? null
+                            : _handleAddToContacts,
+                        colors: colors,
+                        isLoading: _isAddingToContacts,
+                      ),
+                      _buildActionButton(
+                        icon: Icons.message,
+                        label: 'Написать',
+                        onPressed: _isOpeningChat ? null : _handleWriteMessage,
+                        colors: colors,
+                        isLoading: _isOpeningChat,
+                      ),
+                    ],
                   ],
                 ),
                 if (_displayDescription != null &&

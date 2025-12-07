@@ -511,16 +511,17 @@ class _ManageAccountScreenState extends State<ManageAccountScreen> {
                       );
                     }
 
-                    final scrollController = ScrollController();
-
-                    return SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.6,
-                      child: Scrollbar(
-                        controller: scrollController,
-                        child: ListView.builder(
-                          controller: scrollController,
-                          itemCount: categories.length,
-                          itemBuilder: (context, index) {
+                    return StatefulBuilder(
+                      builder: (context, setState) {
+                        final scrollController = ScrollController();
+                        return SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.6,
+                          child: Scrollbar(
+                            controller: scrollController,
+                            child: ListView.builder(
+                              controller: scrollController,
+                              itemCount: categories.length,
+                              itemBuilder: (context, index) {
                             final cat =
                                 categories[index] as Map<String, dynamic>? ??
                                     {};
@@ -643,6 +644,8 @@ class _ManageAccountScreenState extends State<ManageAccountScreen> {
                           },
                         ),
                       ),
+                        );
+                      },
                     );
                   },
                 ),

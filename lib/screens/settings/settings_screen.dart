@@ -12,6 +12,7 @@ import 'package:gwid/screens/settings/bypass_screen.dart';
 import 'package:gwid/screens/settings/about_screen.dart';
 import 'package:gwid/screens/debug_screen.dart';
 import 'package:gwid/screens/settings/komet_misc_screen.dart';
+import 'package:gwid/screens/settings/optimization_screen.dart';
 import 'package:gwid/utils/theme_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -366,6 +367,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return 'О приложении';
       case 'komet':
         return 'Komet Misc';
+      case 'optimization':
+        return 'Оптимизация';
       default:
         return 'Настройки';
     }
@@ -389,98 +392,125 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return const AboutScreen(isModal: true);
       case 'komet':
         return const KometMiscScreen(isModal: true);
+      case 'optimization':
+        return const OptimizationScreen(isModal: true);
       default:
         return _buildSettingsContent();
     }
   }
 
   Widget _buildSettingsContent() {
-    return ListView(
+    final List<_SettingsItem> items = [
+      _SettingsItem(type: _SettingsItemType.profile),
+      _SettingsItem(type: _SettingsItemType.spacer, height: 16),
+      _SettingsItem(type: _SettingsItemType.reconnection),
+      _SettingsItem(type: _SettingsItemType.spacer, height: 16),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.rocket_launch_outlined,
+        title: "Komet Misc",
+        subtitle: "Дополнительные настройки",
+        screen: KometMiscScreen(isModal: widget.isModal),
+      ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.palette_outlined,
+        title: "Внешний вид",
+        subtitle: "Темы, анимации, производительность",
+        screen: AppearanceSettingsScreen(isModal: widget.isModal),
+      ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.notifications_outlined,
+        title: "Уведомления",
+        subtitle: "Звуки, чаты, звонки",
+        screen: NotificationSettingsScreen(isModal: widget.isModal),
+      ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.security_outlined,
+        title: "Приватность и безопасность",
+        subtitle: "Статус, сессии, пароль, блокировки",
+        screen: PrivacySecurityScreen(isModal: widget.isModal),
+      ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.storage_outlined,
+        title: "Данные и хранилище",
+        subtitle: "Использование хранилища, очистка кэша",
+        screen: StorageScreen(isModal: widget.isModal),
+      ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.speed,
+        title: "Оптимизация",
+        subtitle: "Настройки оптимизации",
+        screen: OptimizationScreen(isModal: widget.isModal),
+      ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.wifi_outlined,
+        title: "Сеть",
+        subtitle: "Прокси, мониторинг, логи",
+        screen: NetworkSettingsScreen(isModal: widget.isModal),
+      ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.psychology_outlined,
+        title: "Специальные возможности и фишки",
+        subtitle: "Обход ограничений, эксперименты",
+        screen: const BypassScreen(),
+      ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.info_outline,
+        title: "О приложении",
+        subtitle: "Команда, соглашение",
+        screen: const AboutScreen(),
+      ),
+      _SettingsItem(type: _SettingsItemType.spacer, height: 16),
+      _SettingsItem(type: _SettingsItemType.version),
+    ];
+
+    return ListView.builder(
       padding: const EdgeInsets.all(16.0),
-      children: [
-
-        _buildProfileSection(),
-        const SizedBox(height: 16),
-
-        _buildReconnectionButton(),
-        const SizedBox(height: 16),
-
-        _buildSettingsCategory(
-          context,
-          icon: Icons.rocket_launch_outlined,
-          title: "Komet Misc",
-          subtitle: "Дополнительные настройки",
-          screen: KometMiscScreen(isModal: widget.isModal),
-        ),
-
-        _buildSettingsCategory(
-          context,
-          icon: Icons.palette_outlined,
-          title: "Внешний вид",
-          subtitle: "Темы, анимации, производительность",
-          screen: AppearanceSettingsScreen(isModal: widget.isModal),
-        ),
-        _buildSettingsCategory(
-          context,
-          icon: Icons.notifications_outlined,
-          title: "Уведомления",
-          subtitle: "Звуки, чаты, звонки",
-          screen: NotificationSettingsScreen(isModal: widget.isModal),
-        ),
-        _buildSettingsCategory(
-          context,
-          icon: Icons.security_outlined,
-          title: "Приватность и безопасность",
-          subtitle: "Статус, сессии, пароль, блокировки",
-          screen: PrivacySecurityScreen(isModal: widget.isModal),
-        ),
-        _buildSettingsCategory(
-          context,
-          icon: Icons.storage_outlined,
-          title: "Данные и хранилище",
-          subtitle: "Использование хранилища, очистка кэша",
-          screen: StorageScreen(isModal: widget.isModal),
-        ),
-        _buildSettingsCategory(
-          context,
-          icon: Icons.wifi_outlined,
-          title: "Сеть",
-          subtitle: "Прокси, мониторинг, логи",
-          screen: NetworkSettingsScreen(isModal: widget.isModal),
-        ),
-        _buildSettingsCategory(
-          context,
-          icon: Icons.psychology_outlined,
-          title: "Специальные возможности и фишки",
-          subtitle: "Обход ограничений, эксперименты",
-          screen: const BypassScreen(),
-        ),
-        _buildSettingsCategory(
-          context,
-          icon: Icons.info_outline,
-          title: "О приложении",
-          subtitle: "Команда, соглашение",
-          screen: const AboutScreen(),
-        ),
-
-
-        GestureDetector(
-          onTap: _handleVersionTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24.0),
-            child: Text(
-              version,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.4),
-                fontSize: 12,
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        switch (item.type) {
+          case _SettingsItemType.profile:
+            return _buildProfileSection();
+          case _SettingsItemType.spacer:
+            return SizedBox(height: item.height);
+          case _SettingsItemType.reconnection:
+            return _buildReconnectionButton();
+          case _SettingsItemType.category:
+            return _buildSettingsCategory(
+              context,
+              icon: item.icon!,
+              title: item.title!,
+              subtitle: item.subtitle!,
+              screen: item.screen!,
+            );
+          case _SettingsItemType.version:
+            return GestureDetector(
+              onTap: _handleVersionTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Text(
+                  version,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
+                    fontSize: 12,
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
-      ],
+            );
+        }
+      },
     );
   }
 
@@ -594,6 +624,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               screenKey = 'about';
             else if (screen is KometMiscScreen)
               screenKey = 'komet';
+            else if (screen is OptimizationScreen)
+              screenKey = 'optimization';
 
             setState(() {
               _currentModalScreen = screenKey;
@@ -608,5 +640,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+}
+
+enum _SettingsItemType {
+  profile,
+  spacer,
+  reconnection,
+  category,
+  version,
+}
+
+class _SettingsItem {
+  final _SettingsItemType type;
+  final double? height;
+  final IconData? icon;
+  final String? title;
+  final String? subtitle;
+  final Widget? screen;
+
+  _SettingsItem({
+    required this.type,
+    this.height,
+    this.icon,
+    this.title,
+    this.subtitle,
+    this.screen,
+  });
 }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
 import 'screens/phone_entry_screen.dart';
 import 'utils/theme_provider.dart';
@@ -15,7 +14,6 @@ import 'services/cache_service.dart';
 import 'services/avatar_cache_service.dart';
 import 'services/chat_cache_service.dart';
 import 'services/contact_local_names_service.dart';
-import 'services/version_checker.dart';
 import 'services/account_manager.dart';
 import 'services/music_player_service.dart';
 
@@ -68,6 +66,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    
+    // Отключаем анимации при включенной оптимизации
+    if (themeProvider.optimization) {
+      timeDilation = 0.001; // Практически отключаем анимации (минимальное значение)
+    } else {
+      timeDilation = 1.0; // Восстанавливаем нормальную скорость
+    }
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
@@ -75,6 +80,24 @@ class MyApp extends StatelessWidget {
             (themeProvider.appTheme == AppTheme.system && lightDynamic != null)
             ? lightDynamic.primary
             : themeProvider.accentColor;
+        
+        // Создаем PageTransitionsTheme в зависимости от оптимизации
+        final PageTransitionsTheme pageTransitionsTheme = themeProvider.optimization
+            ? const PageTransitionsTheme(
+                builders: {
+                  TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+                  TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
+                  TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+                  TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+                  TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+                },
+              )
+            : PageTransitionsTheme(
+                builders: {
+                  TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                },
+              );
+        
         final ThemeData baseLightTheme = ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: accentColor,
@@ -82,11 +105,10 @@ class MyApp extends StatelessWidget {
             dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
           ),
           useMaterial3: true,
-          pageTransitionsTheme: PageTransitionsTheme(
-            builders: {
-              TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-            },
-          ),
+          pageTransitionsTheme: pageTransitionsTheme,
+          // Отключаем тени и эффекты при оптимизации для экономии энергии
+          shadowColor: themeProvider.optimization ? Colors.transparent : null,
+          splashFactory: themeProvider.optimization ? NoSplash.splashFactory : null,
           appBarTheme: AppBarTheme(
             titleTextStyle: TextStyle(
               fontSize: 16,
@@ -106,11 +128,10 @@ class MyApp extends StatelessWidget {
             dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
           ),
           useMaterial3: true,
-          pageTransitionsTheme: PageTransitionsTheme(
-            builders: {
-              TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-            },
-          ),
+          pageTransitionsTheme: pageTransitionsTheme,
+          // Отключаем тени и эффекты при оптимизации для экономии энергии
+          shadowColor: themeProvider.optimization ? Colors.transparent : null,
+          splashFactory: themeProvider.optimization ? NoSplash.splashFactory : null,
           appBarTheme: AppBarTheme(
             titleTextStyle: TextStyle(
               fontSize: 16,
@@ -160,7 +181,7 @@ class MyApp extends StatelessWidget {
           title: 'Komet',
           navigatorKey: navigatorKey,
           builder: (context, child) {
-            final showHud = themeProvider.debugShowPerformanceOverlay;
+            final showHud = themeProvider.debugShowPerformanceOverlay || themeProvider.showFpsOverlay;
             return SizedBox.expand(
               child: Stack(
                 children: [

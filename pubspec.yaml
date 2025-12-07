@@ -55,6 +55,8 @@ dependencies:
 
   package_info_plus: ^8.0.0
 
+  battery_plus: ^6.0.2
+
 
   shared_preferences: ^2.2.3
 
