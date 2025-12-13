@@ -4559,26 +4559,15 @@ class ChatMessageBubble extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4.5),
       margin: _getMessageMargin(context),
       decoration: decoration,
-      child: isMobile
-          ? SelectionArea(
-              contextMenuBuilder: (context, selectableRegionState) {
-                return AdaptiveTextSelectionToolbar.buttonItems(
-                  anchors: selectableRegionState.contextMenuAnchors,
-                  buttonItems: [
-                    ContextMenuButtonItem(
-                      label: 'Скопировать',
-                      onPressed: () {
-                        selectableRegionState.copySelection(
-                          SelectionChangedCause.tap,
-                        );
-                      },
-                    ),
-                  ],
-                );
-              },
-              child: content,
-            )
-          : SelectionArea(child: content),
+      child: SelectionArea(
+        contextMenuBuilder: (context, selectableRegionState) {
+          return AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: selectableRegionState.contextMenuAnchors,
+            buttonItems: [],
+          );
+        },
+        child: content,
+      ),
     );
   }
 
@@ -5463,18 +5452,25 @@ class _MessageContextMenuState extends State<_MessageContextMenu>
 
     const menuWidth = 250.0;
     final double estimatedMenuHeight = _isEmojiListExpanded ? 320.0 : 250.0;
+    const padding = 10.0;
 
     double left = widget.position.dx - (menuWidth / 4);
-    if (left + menuWidth > screenSize.width) {
-      left = screenSize.width - menuWidth - 16;
+    if (left + menuWidth > screenSize.width - padding) {
+      left = screenSize.width - menuWidth - padding;
     }
-    if (left < 16) {
-      left = 16;
+    if (left < padding) {
+      left = padding;
     }
 
     double top = widget.position.dy;
-    if (top + estimatedMenuHeight > screenSize.height) {
+    if (top + estimatedMenuHeight > screenSize.height - padding) {
       top = widget.position.dy - estimatedMenuHeight - 10;
+    }
+    if (top < padding) {
+      top = padding;
+    }
+    if (top + estimatedMenuHeight > screenSize.height - padding) {
+      top = screenSize.height - estimatedMenuHeight - padding;
     }
 
     return Scaffold(
