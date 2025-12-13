@@ -2060,6 +2060,11 @@ class _ChatScreenState extends State<ChatScreen> {
           isGrouped: oldItem.isGrouped,
         );
 
+        final animKey = finalMessage.cid != null
+            ? 'cid_${finalMessage.cid}'
+            : finalMessage.id;
+        _animatedMessageIds.add(animKey);
+
         if (mounted) {
           setState(() {});
         }

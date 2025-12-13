@@ -18,6 +18,7 @@ class AvatarCacheService {
 
   final Map<String, Uint8List> _imageMemoryCache = {};
   final Map<String, DateTime> _imageCacheTimestamps = {};
+  final Map<String, ImageProvider> _cachedImageProviders = {};
 
   static const Duration _imageTTL = Duration(days: 7);
   static const int _maxMemoryImages = 50;
@@ -36,12 +37,18 @@ class AvatarCacheService {
     try {
       final cacheKey = _generateCacheKey(avatarUrl, userId);
 
+            if (_cachedImageProviders.containsKey(cacheKey)) {
+        return _cachedImageProviders[cacheKey]!;
+      }
+
       if (_imageMemoryCache.containsKey(cacheKey)) {
         final timestamp = _imageCacheTimestamps[cacheKey];
         if (timestamp != null && !_isExpired(timestamp, _imageTTL)) {
           final imageData = _imageMemoryCache[cacheKey]!;
           if (_isValidImageData(imageData)) {
-            return MemoryImage(imageData);
+            final provider = MemoryImage(imageData);
+            _cachedImageProviders[cacheKey] = provider;
+            return provider;
           } else {
             _imageMemoryCache.remove(cacheKey);
             _imageCacheTimestamps.remove(cacheKey);
@@ -59,7 +66,7 @@ class AvatarCacheService {
       if (cachedFile != null && await cachedFile.exists()) {
         try {
           final imageData = await cachedFile.readAsBytes();
-          if (_isValidImageData(imageData)) {
+            if (_isValidImageData(imageData)) {
             _imageMemoryCache[cacheKey] = imageData;
             _imageCacheTimestamps[cacheKey] = DateTime.now();
 
@@ -67,7 +74,9 @@ class AvatarCacheService {
               await _evictOldestImages();
             }
 
-            return MemoryImage(imageData);
+            final provider = MemoryImage(imageData);
+            _cachedImageProviders[cacheKey] = provider;
+            return provider;
           }
         } catch (e) {
           print('Ошибка чтения кешированного файла аватарки: $e');
@@ -81,10 +90,14 @@ class AvatarCacheService {
         _imageMemoryCache[cacheKey] = imageData;
         _imageCacheTimestamps[cacheKey] = DateTime.now();
 
-        return MemoryImage(imageData);
+        final provider = MemoryImage(imageData);
+        _cachedImageProviders[cacheKey] = provider;
+        return provider;
       }
 
-      return NetworkImage(avatarUrl);
+      final networkProvider = NetworkImage(avatarUrl);
+      _cachedImageProviders[cacheKey] = networkProvider;
+      return networkProvider;
     } catch (e) {
       print('Ошибка получения аватарки: $e');
     }
@@ -332,7 +345,19 @@ class AvatarCacheService {
       );
     }
 
+    final cacheKey = _generateCacheKey(avatarUrl, userId);
+    
+    if (_cachedImageProviders.containsKey(cacheKey)) {
+      return CircleAvatar(
+        key: ValueKey('avatar_$cacheKey'),
+        radius: size / 2,
+        backgroundImage: _cachedImageProviders[cacheKey],
+        backgroundColor: backgroundColor,
+      );
+    }
+    
     return FutureBuilder<ImageProvider?>(
+      key: ValueKey('avatar_$cacheKey'),
       future: getAvatar(avatarUrl, userId: userId),
       builder: (context, snapshot) {
         if (snapshot.hasData && snapshot.data != null) {

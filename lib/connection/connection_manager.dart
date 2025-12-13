@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/status.dart' as status;
+import 'package:gwid/app_urls.dart';
 
 import 'connection_logger.dart';
 import 'connection_state.dart';
@@ -25,14 +26,7 @@ class ConnectionManager {
   StreamSubscription? _messageSubscription;
 
 
-  final List<String> _serverUrls = [
-    'wss://ws-api.oneme.ru:443/websocket',
-    'wss://ws-api.oneme.ru/websocket',
-    'wss://ws-api.oneme.ru:8443/websocket',
-    'ws://ws-api.oneme.ru:80/websocket',
-    'ws://ws-api.oneme.ru/websocket',
-    'ws://ws-api.oneme.ru:8080/websocket',
-  ];
+  final List<String> _serverUrls = AppUrls.websocketUrls;
 
   int _currentUrlIndex = 0;
   String? _currentServerUrl;
@@ -253,7 +247,7 @@ class ConnectionManager {
 
 
     final headers = <String, String>{
-      'Origin': 'https://web.max.ru',
+      'Origin': AppUrls.webOrigin,
       'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Sec-WebSocket-Extensions': 'permessage-deflate',

@@ -14,6 +14,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:platform_info/platform_info.dart';
+import 'package:gwid/app_urls.dart';
 
 class Country {
   final String name;
@@ -621,7 +622,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () async {
                                       final Uri url = Uri.parse(
-                                        'https://t.me/TeamKomet',
+                                        AppUrls.telegramChannel,
                                       );
                                       if (!await launchUrl(url)) {
                                         debugPrint('Could not launch $url');

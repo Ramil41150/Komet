@@ -186,7 +186,7 @@ class AboutScreen extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 16),
           InkWell(
-            onTap: () => _launchUrl('https://t.me/TeamKomet'),
+            onTap: () => _launchUrl(AppUrls.telegramChannel),
             borderRadius: BorderRadius.circular(8),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -240,7 +240,7 @@ class AboutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Версия $version',
+                'Версия $appVersion',
                 style: TextStyle(
                   fontSize: 16,
                   color: colors.onSurface.withOpacity(0.7),
@@ -356,7 +356,7 @@ class AboutScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 InkWell(
-                  onTap: () => _launchUrl('https://t.me/TeamKomet'),
+                  onTap: () => _launchUrl(AppUrls.telegramChannel),
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),

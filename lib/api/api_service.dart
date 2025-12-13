@@ -26,6 +26,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/status.dart' as status;
+import 'package:gwid/app_urls.dart';
 
 part 'api_service_connection.dart';
 part 'api_service_auth.dart';
@@ -47,7 +48,7 @@ class ApiService {
 
   bool _isAppInForeground = true;
 
-  final List<String> _wsUrls = ['wss://ws-api.oneme.ru:443/websocket'];
+  final List<String> _wsUrls = [AppUrls.websocketUrls.first];
   int _currentUrlIndex = 0;
 
   List<String> get wsUrls => _wsUrls;

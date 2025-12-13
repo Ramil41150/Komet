@@ -1908,7 +1908,7 @@ class ChatMessageBubble extends StatelessWidget {
                               constraints: const BoxConstraints(maxWidth: 300),
                               child: RepaintBoundary(
                                 key: ValueKey(
-                                  'video_preview_${message.id}_$videoId',
+                                  'video_preview_${message.cid ?? message.id}_$videoId',
                                 ),
                                 child: _buildVideoPreview(
                                   context: context,
@@ -2079,7 +2079,9 @@ class ChatMessageBubble extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 4.0),
             child: RepaintBoundary(
-              key: ValueKey('video_preview_${message.id}_$videoId'),
+              key: ValueKey(
+                'video_preview_${message.cid ?? message.id}_$videoId',
+              ),
               child: _buildVideoPreview(
                 context: context,
                 videoId: videoId,
@@ -4595,18 +4597,21 @@ class ChatMessageBubble extends StatelessWidget {
     final avatarUrl = senderContact?.photoBaseUrl;
     final contactName = senderContact?.name ?? 'Участник ${message.senderId}';
 
-    return Builder(
-      builder: (context) => MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: () => openUserProfileById(context, message.senderId),
-          child: AvatarCacheService().getAvatarWidget(
-            avatarUrl,
-            userId: message.senderId,
-            size: 32,
-            fallbackText: contactName,
-            backgroundColor: _getUserColor(message.senderId, context),
-            textColor: Colors.white,
+    return RepaintBoundary(
+      key: ValueKey('avatar_${message.senderId}'),
+      child: Builder(
+        builder: (context) => MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () => openUserProfileById(context, message.senderId),
+            child: AvatarCacheService().getAvatarWidget(
+              avatarUrl,
+              userId: message.senderId,
+              size: 32,
+              fallbackText: contactName,
+              backgroundColor: _getUserColor(message.senderId, context),
+              textColor: Colors.white,
+            ),
           ),
         ),
       ),

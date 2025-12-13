@@ -79,7 +79,7 @@ extension ApiServiceConnection on ApiService {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
     final headers = <String, String>{
-      'Origin': 'https://web.max.ru',
+      'Origin': AppUrls.webOrigin,
       'User-Agent': userAgent,
       'Sec-WebSocket-Extensions': 'permessage-deflate',
     };

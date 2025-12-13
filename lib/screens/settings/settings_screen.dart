@@ -13,6 +13,9 @@ import 'package:gwid/screens/settings/about_screen.dart';
 import 'package:gwid/screens/debug_screen.dart';
 import 'package:gwid/screens/settings/komet_misc_screen.dart';
 import 'package:gwid/screens/settings/optimization_screen.dart';
+import 'package:gwid/screens/settings/plugins_screen.dart';
+import 'package:gwid/screens/settings/plugin_section_screen.dart';
+import 'package:gwid/plugins/plugin_service.dart';
 import 'package:gwid/utils/theme_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -64,7 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _myProfile = Profile.fromJson(cachedProfileData);
         _isProfileLoading = false;
       });
-      return; 
+      return;
     }
 
     try {
@@ -196,10 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Настройки"),
-         
-      ),
+      appBar: AppBar(title: const Text("Настройки")),
       body: _buildSettingsContent(),
     );
   }
@@ -456,9 +456,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
         subtitle: "Команда, соглашение",
         screen: const AboutScreen(),
       ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.extension,
+        title: "Plugins",
+        subtitle: "Плагины(WIP)",
+        screen: const PluginsScreen(),
+      ),
+    ];
+
+    final pluginSections = PluginService().getAllPluginSections();
+    for (final section in pluginSections) {
+      items.add(
+        _SettingsItem(
+          type: _SettingsItemType.category,
+          icon: Icons.extension,
+          title: section.title,
+          subtitle: "Плагины(WIP)",
+          screen: PluginSectionScreen(section: section),
+        ),
+      );
+    }
+
+    items.addAll([
       _SettingsItem(type: _SettingsItemType.spacer, height: 16),
       _SettingsItem(type: _SettingsItemType.version),
-    ];
+    ]);
 
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
@@ -486,7 +509,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24.0),
                 child: Text(
-                  version,
+                  appVersion,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Theme.of(
