@@ -34,8 +34,6 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:gwid/services/chat_encryption_service.dart';
 import 'package:lottie/lottie.dart';
 import 'package:gwid/widgets/formatted_text_controller.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:gwid/consts.dart';
 
 bool _debugShowExactDate = false;
 
@@ -3927,48 +3925,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     switch (provider.chatWallpaperType) {
       case ChatWallpaperType.komet:
-        return RepaintBoundary(
-          child: Container(
-            color: Theme.of(context).colorScheme.surface,
-            child: Opacity(
-              opacity: 0.3,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const svgSize = 400.0;
-                  final rows = (constraints.maxHeight / svgSize).ceil() + 1;
-                  final cols = (constraints.maxWidth / svgSize).ceil() + 1;
-                  return SizedBox(
-                    width: constraints.maxWidth,
-                    height: constraints.maxHeight,
-                    child: Stack(
-                      children: List.generate(rows * cols, (index) {
-                        final row = index ~/ cols;
-                        final col = index % cols;
-                        return Transform.translate(
-                          offset: Offset(col * svgSize, row * svgSize),
-                          child: RepaintBoundary(
-                            key: ValueKey('komet_tile_$row\_$col'),
-                            child: SvgPicture.asset(
-                              'assets/images/kometTheme_MERRY-CHRISTMASS.svg',
-                              width: svgSize,
-                              height: svgSize,
-                              fit: BoxFit.fill,
-                              colorFilter: ColorFilter.mode(
-                                AppColors.kometSvgColor,
-                                BlendMode.srcIn,
-                              ),
-                              cacheColorFilter: true,
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
+        return Container(color: Theme.of(context).colorScheme.surface);
       case ChatWallpaperType.solid:
         return Container(color: provider.chatWallpaperColor1);
       case ChatWallpaperType.gradient:

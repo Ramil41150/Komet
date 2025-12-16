@@ -7,12 +7,9 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:gwid/models/message.dart';
 import 'package:gwid/widgets/chat_message_bubble.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import 'package:video_player/video_player.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:gwid/consts.dart';
 
 void _showColorPicker(
   BuildContext context, {
@@ -159,12 +156,16 @@ class _CustomizationScreenState extends State<CustomizationScreen> {
                       icon: Icons.image,
                       title: "Тип обоев",
                       child: DropdownButton<ChatWallpaperType>(
-                        value: theme.chatWallpaperType,
+                        value: theme.chatWallpaperType == ChatWallpaperType.komet
+                            ? ChatWallpaperType.solid
+                            : theme.chatWallpaperType,
                         underline: const SizedBox.shrink(),
                         onChanged: (value) {
                           if (value != null) theme.setChatWallpaperType(value);
                         },
-                        items: ChatWallpaperType.values.map((type) {
+                        items: ChatWallpaperType.values
+                            .where((type) => type != ChatWallpaperType.komet)
+                            .map((type) {
                           return DropdownMenuItem(
                             value: type,
                             child: Text(type.displayName),
@@ -1659,52 +1660,6 @@ class _ChatWallpaperPreview extends StatelessWidget {
     }
 
     switch (theme.chatWallpaperType) {
-      case ChatWallpaperType.komet:
-        return RepaintBoundary(
-          child: Container(
-            color: Theme.of(context).colorScheme.surface,
-            child: Opacity(
-              opacity: 0.3,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const svgSize = 400.0;
-                  final rows = (constraints.maxHeight / svgSize).ceil() + 1;
-                  final cols = (constraints.maxWidth / svgSize).ceil() + 1;
-                  return SizedBox(
-                    width: constraints.maxWidth,
-                    height: constraints.maxHeight,
-                    child: Stack(
-                      children: List.generate(
-                        rows * cols,
-                        (index) {
-                          final row = index ~/ cols;
-                          final col = index % cols;
-                          return Transform.translate(
-                            offset: Offset(col * svgSize, row * svgSize),
-                            child: RepaintBoundary(
-                              key: ValueKey('komet_tile_$row\_$col'),
-                              child: SvgPicture.asset(
-                                'assets/images/kometTheme_MERRY-CHRISTMASS.svg',
-                                width: svgSize,
-                                height: svgSize,
-                                fit: BoxFit.fill,
-                                colorFilter: ColorFilter.mode(
-                                  AppColors.kometSvgColor,
-                                  BlendMode.srcIn,
-                                ),
-                                cacheColorFilter: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
       case ChatWallpaperType.solid:
         return Container(color: theme.chatWallpaperColor1);
       case ChatWallpaperType.gradient:
@@ -1791,6 +1746,8 @@ class _ChatWallpaperPreview extends StatelessWidget {
             ),
           );
         }
+      default:
+        return Container(color: Theme.of(context).colorScheme.surface);
     }
   }
 }

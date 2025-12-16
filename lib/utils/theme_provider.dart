@@ -196,7 +196,7 @@ class CustomThemePreset {
     required this.name,
     this.appTheme = AppTheme.dark,
     this.accentColor = Colors.blue,
-    this.useCustomChatWallpaper = true,
+    this.useCustomChatWallpaper = false,
     this.chatWallpaperType = ChatWallpaperType.komet,
     this.chatWallpaperColor1 = const Color(0xFF101010),
     this.chatWallpaperColor2 = const Color(0xFF202020),
@@ -512,7 +512,7 @@ class CustomThemePreset {
       name: json['name'] as String,
       appTheme: AppTheme.values[json['appTheme'] as int? ?? 0],
       accentColor: Color(json['accentColor'] as int? ?? Colors.blue.value),
-      useCustomChatWallpaper: json['useCustomChatWallpaper'] as bool? ?? true,
+      useCustomChatWallpaper: json['useCustomChatWallpaper'] as bool? ?? false,
       chatWallpaperType:
           ChatWallpaperType.values[json['chatWallpaperType'] as int? ?? 0],
       chatWallpaperColor1: Color(
@@ -1215,7 +1215,7 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> resetChatWallpaperToDefaults() async {
     _activeTheme = _activeTheme.copyWith(
-      useCustomChatWallpaper: true,
+      useCustomChatWallpaper: false,
       chatWallpaperType: ChatWallpaperType.komet,
       chatWallpaperColor1: const Color(0xFF101010),
       chatWallpaperColor2: const Color(0xFF202020),
@@ -1484,7 +1484,7 @@ class ThemeProvider with ChangeNotifier {
         
         useGlassPanels: false,
         
-        useCustomChatWallpaper: true,
+        useCustomChatWallpaper: false,
         chatsListBackgroundType: ChatsListBackgroundType.none,
         drawerBackgroundType: DrawerBackgroundType.none,
         appBarBackgroundType: AppBarBackgroundType.none,
