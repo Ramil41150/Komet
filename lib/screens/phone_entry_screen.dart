@@ -9,7 +9,7 @@ import 'package:gwid/utils/proxy_service.dart';
 import 'package:gwid/screens/registration_screen.dart';
 import 'package:gwid/screens/settings/auth_settings_screen.dart';
 import 'package:gwid/screens/token_auth_screen.dart';
-import 'package:gwid/screens/tos_screen.dart'; 
+import 'package:gwid/screens/tos_screen.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -107,13 +107,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
       mask: '+375 (##) ###-##-##',
       digits: 9,
     ),
-    Country(
-      name: 'Свое',
-      code: '',
-      flag: '',
-      mask: '',
-      digits: 0, 
-    ),
+    Country(name: 'Свое', code: '', flag: '', mask: '', digits: 0),
   ];
 
   Country _selectedCountry = _countries[0];
@@ -124,8 +118,8 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
   bool _hasProxyConfigured = false;
   StreamSubscription? _apiSubscription;
   bool _showContent = false;
-  bool _isTosAccepted = false; 
-  String _customPrefix = ''; 
+  bool _isTosAccepted = false;
+  String _customPrefix = '';
 
   late final AnimationController _animationController;
   late final Animation<Alignment> _topAlignmentAnimation;
@@ -205,7 +199,6 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
 
   void _initializeMaskFormatter() {
     if (_selectedCountry.mask.isEmpty) {
-      
       _maskFormatter = MaskTextInputFormatter(
         mask: '',
         filter: {"#": RegExp(r'[0-9]')},
@@ -238,7 +231,6 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
       }
     }
 
-    
     final isFull = _selectedCountry.mask.isEmpty
         ? _maskFormatter.getUnmaskedText().length >= 5
         : _maskFormatter.getUnmaskedText().length == _selectedCountry.digits;
@@ -269,11 +261,10 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
 
   void _onCountryChanged(Country? country) async {
     if (country != null && country != _selectedCountry) {
-      
       if (country.mask.isEmpty) {
         final prefix = await _showCustomPrefixDialog();
         if (prefix == null || prefix.isEmpty) {
-          return; 
+          return;
         }
         setState(() {
           _selectedCountry = country;
@@ -482,33 +473,34 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
                             customPrefix: _customPrefix,
                           ),
 
-                          if (Platform.instance.android ||
-                              Platform.instance.windows) ...[
-                            const SizedBox(height: 16),
-                            OutlinedButton(
-                              onPressed: _isTosAccepted
-                                  ? () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const RegistrationScreen(),
-                                        ),
-                                      );
-                                    }
-                                  : null,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                              ),
-                              child: Text(
-                                'Зарегистрироваться',
-                                style: GoogleFonts.manrope(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                          // Кнопка реги убрана Sosiте
+                          // if (Platform.instance.android ||
+                          //     Platform.instance.windows) ...[
+                          //   const SizedBox(height: 16),
+                          //   OutlinedButton(
+                          //     onPressed: _isTosAccepted
+                          //         ? () {
+                          //             Navigator.of(context).push(
+                          //               MaterialPageRoute(
+                          //                 builder: (context) =>
+                          //                     const RegistrationScreen(),
+                          //               ),
+                          //             );
+                          //           }
+                          //         : null,
+                          //     style: OutlinedButton.styleFrom(
+                          //       padding: const EdgeInsets.symmetric(
+                          //         vertical: 16,
+                          //       ),
+                          //     ),
+                          //     child: Text(
+                          //       'Зарегистрироваться',
+                          //       style: GoogleFonts.manrope(
+                          //         fontWeight: FontWeight.bold,
+                          //       ),
+                          //     ),
+                          //   ),
+                          // ],
                           const SizedBox(height: 16),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
