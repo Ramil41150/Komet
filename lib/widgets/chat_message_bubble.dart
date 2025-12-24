@@ -5703,34 +5703,58 @@ class FullScreenPhotoViewer extends StatefulWidget {
 }
 
 class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
-  late final TransformationController _transformationController;
+  late final PageController _pageController;
   late final ScrollController _thumbnailsScrollController;
+  final Map<int, TransformationController> _transformationControllers = {};
+  final Map<int, bool> _isPanEnabled = {};
 
-  bool _isPanEnabled = false;
   bool _showLeftArrow = false;
   bool _showRightArrow = false;
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
-    _transformationController = TransformationController();
+    _pageController = PageController();
     _thumbnailsScrollController = ScrollController();
 
-    _transformationController.addListener(_onTransformChanged);
     _thumbnailsScrollController.addListener(_updateArrowsVisibility);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeCurrentPage();
       _scrollToCurrentPhoto();
       _updateArrowsVisibility();
     });
   }
 
+  void _initializeCurrentPage() {
+    if (widget.allPhotos != null && widget.allPhotos!.isNotEmpty && widget.attach != null) {
+      final currentUrl = widget.attach!['url'] ?? widget.attach!['baseUrl'];
+      for (int i = 0; i < widget.allPhotos!.length; i++) {
+        final photoUrl = widget.allPhotos![i]['url'] ?? widget.allPhotos![i]['baseUrl'];
+        if (photoUrl == currentUrl) {
+          _currentPage = i;
+          _pageController = PageController(initialPage: i);
+          break;
+        }
+      }
+    }
+
+   
+    for (int i = 0; i < (widget.allPhotos?.length ?? 1); i++) {
+      _transformationControllers[i] = TransformationController();
+      _isPanEnabled[i] = false;
+      _transformationControllers[i]!.addListener(() => _onTransformChanged(i));
+    }
+  }
+
   @override
   void dispose() {
-    _transformationController.removeListener(_onTransformChanged);
-    _thumbnailsScrollController.removeListener(_updateArrowsVisibility);
-    _transformationController.dispose();
+    _pageController.dispose();
     _thumbnailsScrollController.dispose();
+    for (final controller in _transformationControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -5738,25 +5762,12 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
     if (widget.allPhotos == null || widget.allPhotos!.isEmpty) return;
     if (!_thumbnailsScrollController.hasClients) return;
 
-    final currentUrl = widget.attach?['url'] ?? widget.attach?['baseUrl'];
-    int currentIndex = -1;
-    for (int i = 0; i < widget.allPhotos!.length; i++) {
-      final photoUrl =
-          widget.allPhotos![i]['url'] ?? widget.allPhotos![i]['baseUrl'];
-      if (photoUrl == currentUrl) {
-        currentIndex = i;
-        break;
-      }
-    }
-
-    if (currentIndex == -1) return;
-
     const itemWidth = 80.0;
     const itemMargin = 4.0;
     const itemSpacing = itemWidth + (itemMargin * 2);
     final screenWidth = MediaQuery.of(context).size.width;
     final targetOffset =
-        (currentIndex * itemSpacing) - (screenWidth / 2) + (itemWidth / 2);
+        (_currentPage * itemSpacing) - (screenWidth / 2) + (itemWidth / 2);
 
     _thumbnailsScrollController.animateTo(
       targetOffset.clamp(
@@ -5804,16 +5815,33 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
     );
   }
 
-  void _onTransformChanged() {
-    final currentScale = _transformationController.value.getMaxScaleOnAxis();
+  void _onTransformChanged(int pageIndex) {
+    final controller = _transformationControllers[pageIndex];
+    if (controller == null) return;
 
+    final currentScale = controller.value.getMaxScaleOnAxis();
     final shouldPan = currentScale > 1.0;
 
-    if (shouldPan != _isPanEnabled) {
+    if (shouldPan != _isPanEnabled[pageIndex]) {
       setState(() {
-        _isPanEnabled = shouldPan;
+        _isPanEnabled[pageIndex] = shouldPan;
       });
     }
+  }
+
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+    });
+
+   
+    final controller = _transformationControllers[page];
+    if (controller != null) {
+      controller.value = Matrix4.identity();
+      _isPanEnabled[page] = false;
+    }
+
+    _scrollToCurrentPhoto();
   }
 
   Future<void> _downloadPhoto() async {
@@ -5882,25 +5910,81 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
     }
   }
 
+  Widget _buildPhotoWidget(Map<String, dynamic> photo) {
+    final url = photo['url'] ?? photo['baseUrl'];
+    if (url == null) return const SizedBox();
+
+    return Image.network(
+      url,
+      fit: BoxFit.contain,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(
+          child: Icon(
+            Icons.error,
+            color: Colors.white,
+            size: 48,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          GestureDetector(
-            onTap: () {
-              Navigator.of(context).pop();
-            },
-            child: InteractiveViewer(
-              transformationController: _transformationController,
-              panEnabled: _isPanEnabled,
-              boundaryMargin: EdgeInsets.zero,
-              minScale: 1.0,
-              maxScale: 5.0,
-              child: Center(child: widget.imageChild),
+          if (widget.allPhotos != null && widget.allPhotos!.isNotEmpty)
+            PageView.builder(
+              controller: _pageController,
+              onPageChanged: _onPageChanged,
+              itemCount: widget.allPhotos!.length,
+              itemBuilder: (context, index) {
+                final photo = widget.allPhotos![index];
+                final controller = _transformationControllers[index];
+
+                return GestureDetector(
+                  onTap: () {
+                  
+                    final scale = controller?.value.getMaxScaleOnAxis() ?? 1.0;
+                    if (scale <= 1.1) { 
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: InteractiveViewer(
+                    transformationController: controller,
+                    panEnabled: _isPanEnabled[index] ?? false,
+                    boundaryMargin: const EdgeInsets.all(double.infinity),
+                    minScale: 1.0,
+                    maxScale: 5.0,
+                    child: Center(
+                      child: _buildPhotoWidget(photo),
+                    ),
+                  ),
+                );
+              },
+            )
+          else
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).pop();
+              },
+              child: InteractiveViewer(
+                transformationController: _transformationControllers[0],
+                panEnabled: _isPanEnabled[0] ?? false,
+                boundaryMargin: EdgeInsets.zero,
+                minScale: 1.0,
+                maxScale: 5.0,
+                child: Center(child: widget.imageChild),
+              ),
             ),
-          ),
 
           SafeArea(
             child: Padding(
@@ -5981,10 +6065,7 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                       itemCount: widget.allPhotos!.length,
                       itemBuilder: (context, index) {
                         final photo = widget.allPhotos![index];
-                        final isCurrent =
-                            (photo['url'] ?? photo['baseUrl']) ==
-                            (widget.attach?['url'] ??
-                                widget.attach?['baseUrl']);
+                        final isCurrent = index == _currentPage;
                         return GestureDetector(
                           onTap: () {
                             if (widget.onOpenGallery != null) {
@@ -5993,6 +6074,13 @@ class _FullScreenPhotoViewerState extends State<FullScreenPhotoViewer> {
                                 context,
                                 widget.allPhotos!,
                                 index,
+                              );
+                            } else {
+                             
+                              _pageController.animateToPage(
+                                index,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
                               );
                             }
                           },
@@ -7630,3 +7718,4 @@ class _SinglePhotoWidgetState extends State<_SinglePhotoWidget> {
     );
   }
 }
+

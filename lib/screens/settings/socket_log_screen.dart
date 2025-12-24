@@ -105,7 +105,7 @@ class _SocketLogScreenState extends State<SocketLogScreen> {
     _applyFiltersAndSearch();
     setState(
       () {},
-    );
+    ); 
   }
 
   void _subscribeToNewLogs() {
