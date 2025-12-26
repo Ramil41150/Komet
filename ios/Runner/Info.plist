@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Gwid</string>
+	<string>Komet</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Приложению необходим доступ к камере для съемки фото и видео</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Приложению необходим доступ к галерее для выбора и просмотра фотографий</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Приложению необходим доступ к галерее для сохранения фотографий</string>
 </dict>
 </plist>
