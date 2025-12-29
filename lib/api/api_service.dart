@@ -181,6 +181,66 @@ class ApiService {
 
   Map<String, dynamic>? get lastChatsPayload => _lastChatsPayload;
 
+  void updateChatInListLocally(int chatId, Map<String, dynamic> messageJson, [Map<String, dynamic>? chatJson]) {
+    try {
+      _lastChatsPayload ??= {
+        'chats': <dynamic>[],
+        'contacts': <dynamic>[],
+        'profile': null,
+        'presence': null,
+        'config': null,
+      };
+
+      final chats = _lastChatsPayload!['chats'] as List<dynamic>;
+      final existingIndex = chats.indexWhere(
+        (c) => c is Map && c['id'] == chatId,
+      );
+
+      if (existingIndex != -1) {
+        final chat = Map<String, dynamic>.from(chats[existingIndex] as Map);
+        chat['lastMessage'] = messageJson;
+
+        final currentUserId = userId;
+        final newMessageSenderId = messageJson['sender'];
+        final isMyMessage = currentUserId != null &&
+            (newMessageSenderId.toString() == currentUserId ||
+             chat['ownerId'] == newMessageSenderId);
+
+        if (!isMyMessage) {
+          final currentCount = chat['newMessages'] as int? ?? 0;
+          chat['newMessages'] = currentCount + 1;
+        }
+
+        chats[existingIndex] = chat;
+
+        _emitLocal({
+          'ver': 11,
+          'cmd': 0,
+          'seq': -1,
+          'opcode': 64,
+          'payload': {
+            'chatId': chatId,
+            'chat': chat,
+          },
+        });
+      } else if (chatJson != null) {
+        chats.insert(0, chatJson);
+
+        _emitLocal({
+          'ver': 11,
+          'cmd': 0,
+          'seq': -1,
+          'opcode': 64,
+          'payload': {
+            'chatId': chatId,
+            'chat': chatJson,
+          },
+        });
+      }
+    } catch (e) {
+    }
+  }
+
   int _reconnectDelaySeconds = 2;
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 1000;

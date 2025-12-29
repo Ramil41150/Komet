@@ -30,7 +30,7 @@ class AppLimits {
   /// Максимальное количество недавних эмодзи в панели вот этой вот как ее
   static const int maxRecentEmoji = 20;
 
-  static const int maxLogPayloadLength = 30;
+  static const int maxLogPayloadLength = 30000;
 }
 
 class AppSettings {

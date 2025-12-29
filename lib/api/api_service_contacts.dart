@@ -158,9 +158,10 @@ extension ApiServiceContacts on ApiService {
   }
 
   void sendReaction(int chatId, String messageId, String emoji) {
+    final messageIdInt = int.tryParse(messageId) ?? 0;
     final payload = {
       "chatId": chatId,
-      "messageId": messageId,
+      "messageId": messageIdInt,
       "reaction": {"reactionType": "EMOJI", "id": emoji},
     };
     _sendMessage(178, payload);
@@ -168,7 +169,8 @@ extension ApiServiceContacts on ApiService {
   }
 
   void removeReaction(int chatId, String messageId) {
-    final payload = {"chatId": chatId, "messageId": messageId};
+    final messageIdInt = int.tryParse(messageId) ?? 0;
+    final payload = {"chatId": chatId, "messageId": messageIdInt};
     _sendMessage(179, payload);
     print('Удаляем реакцию с сообщения $messageId в чате $chatId');
   }

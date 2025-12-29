@@ -188,7 +188,6 @@ class MessageHandler {
         // Успешная отправка сообщения с сервера - обновляем чат
         final messageData = payload['message'] as Map<String, dynamic>?;
         if (messageData != null) {
-          final messageId = messageData['id'] as String?;
           final cid = messageData['cid'] as int?;
           
           // Удаляем из очереди по id или cid
@@ -294,8 +293,18 @@ class MessageHandler {
   }
 
   void _handleNewMessage(int chatId, Map<String, dynamic> payload) {
+    if (allChats.isEmpty) {
+      return;
+    }
+
     final newMessage = Message.fromJson(payload['message']);
-    
+
+    if (newMessage.status == 'REMOVED') {
+      ApiService.instance.clearCacheForChat(chatId);
+      unawaited(ChatCacheService().removeMessageFromCache(chatId, newMessage.id));
+      return;
+    }
+
     // Обработка контактов в сообщении
     for (final attach in newMessage.attaches) {
       if (attach['_type'] == 'CONTACT') {
@@ -374,11 +383,11 @@ class MessageHandler {
 
     if (chatIndex != -1) {
       final oldChat = allChats[chatIndex];
-      
+
       // Определяем, наше ли это сообщение
-      final isMyMessage = (myId != null && newMessage.senderId == myId) || 
+      final isMyMessage = (myId != null && newMessage.senderId == myId) ||
                           newMessage.senderId == oldChat.ownerId;
-      
+
       final updatedChat = oldChat.copyWith(
         lastMessage: newMessage,
         newMessages: !isMyMessage
@@ -402,6 +411,32 @@ class MessageHandler {
         allChats.insert(insertIndex, newChat);
         filterChats();
       });
+    } else {
+      final lastPayload = ApiService.instance.lastChatsPayload;
+      if (lastPayload != null) {
+        final chats = lastPayload['chats'] as List<dynamic>?;
+        if (chats != null) {
+          Map<String, dynamic>? chatJson;
+          for (final c in chats) {
+            if (c is Map<String, dynamic> && c['id'] == chatId) {
+              chatJson = c;
+              break;
+            }
+          }
+          if (chatJson != null) {
+            final newChat = Chat.fromJson(chatJson);
+            final updatedChat = newChat.copyWith(
+              lastMessage: Message.fromJson(payload['message']),
+              newMessages: newChat.newMessages + 1,
+            );
+            setState(() {
+              allChats.add(updatedChat);
+              _insertChatAtCorrectPosition(updatedChat);
+              filterChats();
+            });
+          }
+        }
+      }
     }
   }
 

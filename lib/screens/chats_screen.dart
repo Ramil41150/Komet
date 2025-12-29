@@ -65,6 +65,8 @@ class _ChatsScreenState extends State<ChatsScreen>
   late Future<Map<String, dynamic>> _chatsFuture;
   StreamSubscription? _apiSubscription;
   List<Chat> _allChats = [];
+  bool _chatsLoaded = false;
+  MessageHandler? _messageHandler;
   List<Chat> _filteredChats = [];
   Map<int, Contact> _contacts = {};
   bool _isSearchExpanded = false;
@@ -285,6 +287,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   }
 
   void _listenForUpdates() {
+    _messageHandler?.listen()?.cancel();
     final handler = MessageHandler(
       setState: setState,
       getContext: () => context,
@@ -310,6 +313,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       isSavedMessages: _isSavedMessages,
     );
 
+    _messageHandler = handler;
     _apiSubscription = handler.listen();
   }
 
@@ -1195,11 +1199,13 @@ class _ChatsScreenState extends State<ChatsScreen>
                 final chatListJson = snapshot.data!['chats'] as List;
                 final contactListJson = snapshot.data!['contacts'] as List;
                 _allChats = chatListJson
-                    .map((json) => Chat.fromJson((json as Map).cast<String, dynamic>()))
+                    .map((json) => Chat.fromJson((json as Map<String, dynamic>)))
                     .toList();
-                final contacts = contactListJson.map(
-                  (json) => Contact.fromJson((json as Map).cast<String, dynamic>()),
-                );
+                _chatsLoaded = true;
+                _listenForUpdates();
+                  final contacts = contactListJson.map(
+                    (json) => Contact.fromJson(json as Map<String, dynamic>),
+                  );
                 _contacts = {for (var c in contacts) c.id: c};
 
                 final presence =
@@ -3785,6 +3791,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     _apiSubscription?.cancel();
     _connectionStatusSubscription?.cancel();
     _connectionStateSubscription?.cancel();
+    _messageHandler?.listen()?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _searchDebounceTimer?.cancel();

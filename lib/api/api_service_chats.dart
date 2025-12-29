@@ -245,43 +245,6 @@ extension ApiServiceChats on ApiService {
     }
   }
 
-void _updateChatLastMessageLocally(int chatId, Map<String, dynamic> messageJson) {
-    try {
-      _lastChatsPayload ??= {
-        'chats': <dynamic>[],
-        'contacts': <dynamic>[],
-        'profile': null,
-        'presence': null,
-        'config': null,
-      };
-
-      final chats = _lastChatsPayload!['chats'] as List<dynamic>;
-      final existingIndex = chats.indexWhere(
-        (c) => c is Map && c['id'] == chatId,
-      );
-
-      if (existingIndex != -1) {
-        final chat = Map<String, dynamic>.from(chats[existingIndex] as Map);
-        chat['lastMessage'] = messageJson;
-        chats[existingIndex] = chat;
-        
-        // Отправляем событие обновления чата для UI
-        _emitLocal({
-          'ver': 11,
-          'cmd': 1,
-          'seq': -1,
-          'opcode': 64,
-          'payload': {
-            'chatId': chatId,
-            'chat': chat,
-            'message': messageJson,
-          },
-        });
-      }
-    } catch (e) {
-      print('Не удалось обновить последнее сообщение чата: $e');
-    }
-  }
 
   
   
@@ -1194,7 +1157,6 @@ void _updateChatLastMessageLocally(int chatId, Map<String, dynamic> messageJson)
     });
     
     // Локально обновляем список чатов - ПРЯМО ЗДЕСЬ
-    _updateChatLastMessageLocally(chatId, localMessage);
     
 
     final queueItem = QueueItem(
@@ -1326,10 +1288,12 @@ void _updateChatLastMessageLocally(int chatId, Map<String, dynamic> messageJson)
     String messageId, {
     bool forMe = false,
   }) async {
+    final messageIdInt = int.tryParse(messageId) ?? 0;
     final payload = {
       "chatId": chatId,
-      "messageIds": [messageId],
+      "messageIds": [messageIdInt],
       "forMe": forMe,
+      "itemType": "REGULAR",
     };
 
     clearChatsCache();
@@ -1374,6 +1338,7 @@ void _updateChatLastMessageLocally(int chatId, Map<String, dynamic> messageJson)
       bool ok = await sendOnce();
       if (ok) {
         print('Сообщение $messageId успешно удалено');
+        await _chatCacheService.removeMessageFromCache(chatId, messageId);
         return;
       }
 

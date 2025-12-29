@@ -83,7 +83,8 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final List<Message> _messages = [];
   List<ChatItem> _chatItems = [];
-  final Set<String> _animatedMessageIds = {};
+  final Set<String> _deletingMessageIds = {};
+  int _lastRenderTime = 0;
   List<Map<String, dynamic>> _cachedAllPhotos = [];
   String? _highlightedMessageId;
 
@@ -1070,12 +1071,19 @@ class _ChatScreenState extends State<ChatScreen> {
           });
         }
       } else if (opcode == 128) {
-        if (chatIdNormalized == widget.chatId) {
-          final newMessage = Message.fromJson(payload['message']);
+        final newMessage = Message.fromJson(payload['message']);
 
-          // Обновляем кеш сообщений
-          unawaited(ChatCacheService().addMessageToCache(widget.chatId, newMessage));
+        if (newMessage.status == 'REMOVED') {
+          if (chatIdNormalized == widget.chatId) {
+            _removeMessages([newMessage.id]);
+          } else if (chatIdNormalized != null) {
+            unawaited(ChatCacheService().removeMessageFromCache(chatIdNormalized, newMessage.id));
+          }
+        } else {
+          if (chatIdNormalized == widget.chatId) {
+            unawaited(ChatCacheService().addMessageToCache(widget.chatId, newMessage));
 
+          _lastRenderTime = DateTime.now().millisecondsSinceEpoch;
           Future.microtask(() {
             if (!mounted) return;
             final hasSameId = _messages.any((m) => m.id == newMessage.id);
@@ -1088,6 +1096,20 @@ class _ChatScreenState extends State<ChatScreen> {
               _addMessage(newMessage);
             }
           });
+        } else if (chatIdNormalized != null) {
+          final chatJson = payload['chat'] as Map<String, dynamic>?;
+          ApiService.instance.updateChatInListLocally(chatIdNormalized, {
+              'id': newMessage.id,
+              'sender': newMessage.senderId,
+              'text': newMessage.text,
+              'time': newMessage.time,
+              'status': newMessage.status,
+              'attaches': newMessage.attaches,
+              'cid': newMessage.cid,
+              'reactionInfo': newMessage.reactionInfo,
+              'link': newMessage.link,
+          }, chatJson);
+        }
         }
       } else if (opcode == 129) {
         if (chatIdNormalized == widget.chatId) {}
@@ -1120,18 +1142,6 @@ class _ChatScreenState extends State<ChatScreen> {
           Future.microtask(() {
             if (mounted) {
               _updateMessage(editedMessage);
-            }
-          });
-        }
-      } else if (opcode == 66) {
-        if (chatIdNormalized == widget.chatId) {
-          final deletedMessageIds = List<String>.from(
-            payload['messageIds'] ?? [],
-          );
-
-          Future.microtask(() {
-            if (mounted) {
-              _removeMessages(deletedMessageIds);
             }
           });
         }
@@ -1497,11 +1507,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final List<ChatItem> items = [];
     final source = _messages;
 
-    for (final msg in source) {
-      final key = msg.cid != null ? 'cid_${msg.cid}' : msg.id;
-      _animatedMessageIds.add(key);
-    }
-
     for (int i = 0; i < source.length; i++) {
       final currentMessage = source[i];
       final previousMessage = (i > 0) ? source[i - 1] : null;
@@ -1733,9 +1738,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _updatePinnedMessage();
 
-    final animKey = message.cid != null ? 'cid_${message.cid}' : message.id;
-
     if (mounted) {
+      _lastRenderTime = DateTime.now().millisecondsSinceEpoch;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() {});
@@ -1743,9 +1747,6 @@ class _ChatScreenState extends State<ChatScreen> {
               _itemScrollController.isAttached) {
             _itemScrollController.jumpTo(index: 0);
           }
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _animatedMessageIds.add(animKey);
-          });
         }
       });
     }
@@ -1914,10 +1915,6 @@ class _ChatScreenState extends State<ChatScreen> {
           isGrouped: oldItem.isGrouped,
         );
 
-        final animKey = finalMessage.cid != null
-            ? 'cid_${finalMessage.cid}'
-            : finalMessage.id;
-        _animatedMessageIds.add(animKey);
 
         if (mounted) {
           setState(() {});
@@ -1949,19 +1946,29 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _removeMessages(List<String> messageIds) {
-    final removedCount = _messages.length;
-    _messages.removeWhere((message) => messageIds.contains(message.id));
-    final actuallyRemoved = removedCount - _messages.length;
-    if (actuallyRemoved > 0) {
-      ApiService.instance.clearCacheForChat(widget.chatId);
-      _buildChatItems();
-
-      Future.microtask(() {
-        if (mounted) {
-          setState(() {});
-        }
-      });
+    _deletingMessageIds.addAll(messageIds);
+    if (mounted) {
+      setState(() {});
     }
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      final removedCount = _messages.length;
+      _messages.removeWhere((message) => messageIds.contains(message.id));
+      final actuallyRemoved = removedCount - _messages.length;
+      if (actuallyRemoved > 0) {
+        _deletingMessageIds.removeAll(messageIds);
+        for (final messageId in messageIds) {
+          unawaited(ChatCacheService().removeMessageFromCache(widget.chatId, messageId));
+        }
+        _buildChatItems();
+
+        Future.microtask(() {
+          if (mounted) {
+            setState(() {});
+          }
+        });
+      }
+    });
   }
 
   Future<void> _sendEmptyChatSticker() async {
@@ -2733,78 +2740,56 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       },
       pageBuilder: (context, animation, secondaryAnimation) {
-        bool forAll = false;
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Очистить историю чата'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Вы уверены, что хотите очистить историю чата с ${_currentContact.name}? Это действие нельзя отменить.',
-                  ),
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: forAll,
-                    onChanged: (value) {
-                      setStateDialog(() {
-                        forAll = value ?? false;
-                      });
-                    },
-                    title: const Text('Удалить сообщения для всех'),
-                  ),
-                ],
+        return AlertDialog(
+          title: const Text('Очистить историю чата'),
+          content: Text(
+            'Вы уверены, что хотите очистить историю чата с ${_currentContact.name}? Сообщения будут удалены только у вас. Это действие нельзя отменить.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                try {
+                  await ApiService.instance.clearChatHistory(
+                    widget.chatId,
+                    forAll: false,
+                  );
+                  if (mounted) {
+                    setState(() {
+                      _messages.clear();
+                      _chatItems.clear();
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('История чата очищена'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Ошибка очистки истории: $e'),
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Отмена'),
-                ),
-                FilledButton(
-                  onPressed: () async {
-                    Navigator.of(context).pop();
-                    try {
-                      await ApiService.instance.clearChatHistory(
-                        widget.chatId,
-                        forAll: forAll,
-                      );
-                      if (mounted) {
-                        setState(() {
-                          _messages.clear();
-                          _chatItems.clear();
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('История чата очищена'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Ошибка очистки истории: $e'),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.error,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Очистить'),
-                ),
-              ],
-            );
-          },
+              child: const Text('Очистить'),
+            ),
+          ],
         );
       },
     );
@@ -2826,84 +2811,62 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       },
       pageBuilder: (context, animation, secondaryAnimation) {
-        bool forAll = false;
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Удалить чат'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Вы уверены, что хотите удалить чат с ${_currentContact.name}? Это действие нельзя отменить.',
-                  ),
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: forAll,
-                    onChanged: (value) {
-                      setStateDialog(() {
-                        forAll = value ?? false;
-                      });
-                    },
-                    title: const Text('Удалить сообщения для всех'),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Отмена'),
-                ),
-                FilledButton(
-                  onPressed: () async {
+        return AlertDialog(
+          title: const Text('Удалить чат'),
+          content: Text(
+            'Вы уверены, что хотите удалить чат с ${_currentContact.name}? Чат будет удален только у вас. Это действие нельзя отменить.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                try {
+                  await ApiService.instance.clearChatHistory(
+                    widget.chatId,
+                    forAll: false,
+                  );
+
+                  await ApiService.instance.subscribeToChat(
+                    widget.chatId,
+                    false,
+                  );
+
+                  if (mounted) {
                     Navigator.of(context).pop();
-                    try {
-                      await ApiService.instance.clearChatHistory(
-                        widget.chatId,
-                        forAll: forAll,
-                      );
 
-                      await ApiService.instance.subscribeToChat(
-                        widget.chatId,
-                        false,
-                      );
+                    widget.onChatRemoved?.call();
 
-                      if (mounted) {
-                        Navigator.of(context).pop();
-
-                        widget.onChatRemoved?.call();
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Чат удален'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Ошибка удаления чата: $e'),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.error,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Удалить'),
-                ),
-              ],
-            );
-          },
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Чат удален'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Ошибка удаления чата: $e'),
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Удалить'),
+            ),
+          ],
         );
       },
     );
@@ -3379,9 +3342,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                     final hasPhoto = item.message.attaches.any(
                                       (a) => a['_type'] == 'PHOTO',
                                     );
-                                    final isNew = !_animatedMessageIds.contains(
-                                      stableKey,
-                                    );
+                                    final messageTime = item.message.time;
+                                    final isNew = messageTime > _lastRenderTime;
                                     final deferImageLoading =
                                         hasPhoto &&
                                         isNew &&
@@ -3434,6 +3396,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                           : null,
                                       onDeleteForMe: isMe
                                           ? () async {
+                                              _removeMessages([item.message.id]);
                                               await ApiService.instance
                                                   .deleteMessage(
                                                     widget.chatId,
@@ -3445,6 +3408,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                           : null,
                                       onDeleteForAll: isMe
                                           ? () async {
+                                              _removeMessages([item.message.id]);
                                               await ApiService.instance
                                                   .deleteMessage(
                                                     widget.chatId,
@@ -3504,6 +3468,28 @@ class _ChatScreenState extends State<ChatScreen> {
                                       child: bubble,
                                     );
 
+                                    final isDeleting = _deletingMessageIds.contains(message.id);
+                                    if (isDeleting) {
+                                      return TweenAnimationBuilder<double>(
+                                        duration: const Duration(milliseconds: 300),
+                                        tween: Tween<double>(begin: 1.0, end: 0.0),
+                                        curve: Curves.easeIn,
+                                        builder: (context, value, child) {
+                                          return Transform.scale(
+                                            scale: value,
+                                            child: Transform.rotate(
+                                              angle: (1.0 - value) * 0.3,
+                                              child: Opacity(
+                                                opacity: value,
+                                                child: finalMessageWidget,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: finalMessageWidget,
+                                      );
+                                    }
+
                                     if (isHighlighted) {
                                       return TweenAnimationBuilder<double>(
                                         duration: const Duration(
@@ -3540,7 +3526,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       );
                                     }
 
-                                    if (isNew && !_anyOptimize) {
+                                    if (isNew) {
                                       return _NewMessageAnimation(
                                         key: ValueKey('anim_$stableKey'),
                                         child: finalMessageWidget,
@@ -5494,7 +5480,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _textFocusNode.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
-    _animatedMessageIds.clear();
     super.dispose();
   }
 
