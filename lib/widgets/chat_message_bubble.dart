@@ -5567,6 +5567,16 @@ class _MessageContextMenuState extends State<_MessageContextMenu>
     with SingleTickerProviderStateMixin {
   bool _isEmojiListExpanded = false;
 
+  final GlobalKey _menuKey = GlobalKey();
+  Size? _lastLoggedSize;
+
+  double? _overrideLeft;
+  double? _overrideTop;
+  double _safeLeft = 0;
+  double _safeRight = 0;
+  double _safeTop = 0;
+  double _safeBottom = 0;
+
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
@@ -5661,6 +5671,51 @@ class _MessageContextMenuState extends State<_MessageContextMenu>
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  void _logMenuBoxGeometry() {
+    if (!kDebugMode) return;
+    final box = _menuKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+
+    final size = box.size;
+    if (_lastLoggedSize == size) return;
+    _lastLoggedSize = size;
+
+    final offset = box.localToGlobal(Offset.zero);
+    debugPrint(
+      '[CtxMenuBox] pos=(${offset.dx.toStringAsFixed(1)},'
+      '${offset.dy.toStringAsFixed(1)}) size='
+      '(${size.width.toStringAsFixed(1)}x${size.height.toStringAsFixed(1)})',
+    );
+
+    // Если меню вышло за границы, повторно спозиционируем с учетом фактического размера.
+    double newLeft = offset.dx;
+    double newTop = offset.dy;
+    bool needsAdjust = false;
+
+    if (offset.dx < _safeLeft) {
+      newLeft = _safeLeft;
+      needsAdjust = true;
+    } else if (offset.dx + size.width > _safeRight) {
+      newLeft = _safeRight - size.width;
+      needsAdjust = true;
+    }
+
+    if (offset.dy < _safeTop) {
+      newTop = _safeTop;
+      needsAdjust = true;
+    } else if (offset.dy + size.height > _safeBottom) {
+      newTop = _safeBottom - size.height;
+      needsAdjust = true;
+    }
+
+    if (needsAdjust) {
+      setState(() {
+        _overrideLeft = newLeft;
+        _overrideTop = newTop;
+      });
+    }
   }
 
   bool _hasAudioOrVideoCircle() {
@@ -5891,14 +5946,26 @@ class _MessageContextMenuState extends State<_MessageContextMenu>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final screenSize = MediaQuery.of(context).size;
-    final viewInsets = MediaQuery.of(context).viewInsets;
+    final mediaQuery = MediaQuery.of(context);
+    final screenSize = mediaQuery.size;
+    final viewInsets = mediaQuery.viewInsets; // keyboard
+    final viewPadding = mediaQuery.viewPadding; // status bar / notch
 
     const menuWidth = 250.0;
-    final double estimatedMenuHeight = widget.isPending
-        ? 160.0
-        : (_isEmojiListExpanded ? 320.0 : 250.0);
     const padding = 10.0;
+
+    final double availableHeight =
+      screenSize.height - viewInsets.vertical - viewPadding.vertical;
+    final double maxMenuHeight =
+      (availableHeight - padding * 2).clamp(180.0, availableHeight);
+
+    final double estimatedMenuHeight = widget.isPending
+      ? 180.0
+      : (_isEmojiListExpanded ? 340.0 : 260.0);
+
+    // Начальное позиционирование — по оценочной высоте, а затем корректировка после реального измерения.
+    final double menuHeightForPosition =
+      estimatedMenuHeight.clamp(180.0, maxMenuHeight);
 
     double left;
     double top;
@@ -5906,25 +5973,52 @@ class _MessageContextMenuState extends State<_MessageContextMenu>
     if (widget.isPending) {
       // For pending messages keep the compact menu centered near the tap point.
       left = widget.position.dx - (menuWidth / 2);
-      top = widget.position.dy - (estimatedMenuHeight / 2);
+      top = widget.position.dy - (menuHeightForPosition / 2);
     } else {
       left = widget.position.dx - (menuWidth / 4);
       top = widget.position.dy;
     }
 
-    if (left + menuWidth > screenSize.width - padding) {
-      left = screenSize.width - menuWidth - padding;
+    _safeLeft = viewPadding.left + padding;
+    _safeRight = screenSize.width - viewPadding.right - padding;
+    if (left + menuWidth > _safeRight) {
+      left = _safeRight - menuWidth;
     }
-    if (left < padding) {
-      left = padding;
+    if (left < _safeLeft) {
+      left = _safeLeft;
     }
 
-    if (top + estimatedMenuHeight > screenSize.height - padding) {
-      top = screenSize.height - estimatedMenuHeight - padding;
+    _safeTop = viewPadding.top + padding;
+    _safeBottom =
+        screenSize.height - viewInsets.bottom - viewPadding.bottom - padding;
+    if (top + menuHeightForPosition > _safeBottom) {
+      top = _safeBottom - menuHeightForPosition;
     }
-    if (top < padding) {
-      top = padding;
+    if (top < _safeTop) {
+      top = _safeTop;
     }
+
+    if (_overrideLeft != null) {
+      left = _overrideLeft!;
+    }
+    if (_overrideTop != null) {
+      top = _overrideTop!;
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        '[CtxMenu] tap=(${widget.position.dx.toStringAsFixed(1)},'
+        '${widget.position.dy.toStringAsFixed(1)}) '
+        'pos=(${left.toStringAsFixed(1)},${top.toStringAsFixed(1)}) '
+        'size=(${menuWidth.toStringAsFixed(0)}x${menuHeightForPosition.toStringAsFixed(1)}) '
+        'screen=${screenSize.width.toStringAsFixed(1)}x${screenSize.height.toStringAsFixed(1)} '
+        'insets=${viewInsets.left},${viewInsets.top},${viewInsets.right},${viewInsets.bottom} '
+        'padding=${viewPadding.left},${viewPadding.top},${viewPadding.right},${viewPadding.bottom} '
+        'safeH=${availableHeight.toStringAsFixed(1)} maxH=${maxMenuHeight.toStringAsFixed(1)}',
+      );
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _logMenuBoxGeometry());
 
     return Scaffold(
       backgroundColor: Colors.black.withOpacity(0.1),
@@ -5950,6 +6044,7 @@ class _MessageContextMenuState extends State<_MessageContextMenu>
                     sigmaY: themeProvider.messageMenuBlur,
                   ),
                   child: Card(
+                    key: _menuKey,
                     elevation: 8,
                     color: theme.colorScheme.surface.withOpacity(
                       themeProvider.messageMenuOpacity,
@@ -5957,22 +6052,27 @@ class _MessageContextMenuState extends State<_MessageContextMenu>
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Container(
-                      width: menuWidth,
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (!widget.isPending) ...[
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeInOut,
-                              child: _buildEmojiSection(),
-                            ),
-                            const Divider(height: 12),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: menuWidth,
+                        maxHeight: maxMenuHeight,
+                      ),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (!widget.isPending) ...[
+                              AnimatedSize(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                                child: _buildEmojiSection(),
+                              ),
+                              const Divider(height: 12),
+                            ],
+                            _buildActionsSection(theme),
                           ],
-                          _buildActionsSection(theme),
-                        ],
+                        ),
                       ),
                     ),
                   ),
