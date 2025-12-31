@@ -84,7 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<Message> _messages = [];
   List<ChatItem> _chatItems = [];
   final Set<String> _deletingMessageIds = {};
-  int _lastRenderTime = 0;
+  final Set<String> _messagesToAnimate = {};
   List<Map<String, dynamic>> _cachedAllPhotos = [];
   String? _highlightedMessageId;
 
@@ -1143,8 +1143,6 @@ class _ChatScreenState extends State<ChatScreen> {
         } else {
           if (chatIdNormalized == widget.chatId) {
             unawaited(ChatCacheService().addMessageToCache(widget.chatId, newMessage));
-
-          _lastRenderTime = DateTime.now().millisecondsSinceEpoch;
           Future.microtask(() {
             if (!mounted) return;
             final hasSameId = _messages.any((m) => m.id == newMessage.id);
@@ -1301,6 +1299,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
 
       _buildChatItems();
+      _messagesToAnimate.clear();
 
       Future.microtask(() {
         if (mounted) {
@@ -1447,6 +1446,8 @@ class _ChatScreenState extends State<ChatScreen> {
           _buildChatItems();
           _isLoadingHistory = false;
         });
+
+        _messagesToAnimate.clear();
 
         if (_messages.isNotEmpty) {
           _jumpToBottom();
@@ -1761,6 +1762,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final lastMessage = _messages.isNotEmpty ? _messages.last : null;
     _messages.add(normalizedMessage);
+    _messagesToAnimate.add(normalizedMessage.id);
 
     final hasPhoto = normalizedMessage.attaches.any((a) => a['_type'] == 'PHOTO');
     if (hasPhoto) {
@@ -1811,7 +1813,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _updatePinnedMessage();
 
     if (mounted) {
-      _lastRenderTime = DateTime.now().millisecondsSinceEpoch;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() {});
@@ -3577,11 +3578,18 @@ class _ChatScreenState extends State<ChatScreen> {
                                     final hasPhoto = item.message.attaches.any(
                                       (a) => a['_type'] == 'PHOTO',
                                     );
-                                    final messageTime = item.message.time;
-                                    final isNew = messageTime > _lastRenderTime;
+                                    final shouldAnimateNew =
+                                        _messagesToAnimate.contains(
+                                      item.message.id,
+                                    );
+                                    if (shouldAnimateNew) {
+                                      _messagesToAnimate.remove(
+                                        item.message.id,
+                                      );
+                                    }
                                     final deferImageLoading =
                                         hasPhoto &&
-                                        isNew &&
+                                        shouldAnimateNew &&
                                         !_anyOptimize &&
                                         !context
                                             .read<ThemeProvider>()
@@ -3742,42 +3750,29 @@ class _ChatScreenState extends State<ChatScreen> {
                                     }
 
                                     if (isHighlighted) {
-                                      return TweenAnimationBuilder<double>(
-                                        duration: const Duration(
-                                          milliseconds: 600,
+                                      return Container(
+                                        margin: const EdgeInsets.symmetric(
+                                          vertical: 1,
                                         ),
-                                        tween: Tween<double>(
-                                          begin: 0.3,
-                                          end: 0.6,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primaryContainer
+                                              .withOpacity(0.5),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                            width: 1.5,
+                                          ),
                                         ),
-                                        curve: Curves.easeInOut,
-                                        builder: (context, value, child) {
-                                          return Container(
-                                            margin: const EdgeInsets.symmetric(
-                                              vertical: 1,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primaryContainer
-                                                  .withOpacity(value),
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                              border: Border.all(
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.primary,
-                                                width: 1.5,
-                                              ),
-                                            ),
-                                            child: child,
-                                          );
-                                        },
                                         child: finalMessageWidget,
                                       );
                                     }
 
-                                    if (isNew) {
+                                    if (shouldAnimateNew) {
                                       return _NewMessageAnimation(
                                         key: ValueKey('anim_$stableKey'),
                                         child: finalMessageWidget,
