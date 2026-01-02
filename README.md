@@ -1,3 +1,9 @@
+# НИЧЕГО СЮДА НЕ КОММИТИМ 
+
+
+
+
+
 <img src="assets/icon/komet_512.png" width="100" alt="Komet Logo">
 
 # Komet
