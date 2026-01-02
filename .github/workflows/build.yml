@@ -37,14 +37,14 @@ jobs:
         run: flutter build appbundle --release
       
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: komet-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
       
       - name: Upload App Bundle artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: komet-android-aab
           path: build/app/outputs/bundle/release/app-release.aab
@@ -68,7 +68,7 @@ jobs:
         run: flutter build ios --release --no-codesign
       
       - name: Upload iOS artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: komet-ios
           path: build/ios/iphoneos/Runner.app
@@ -92,7 +92,7 @@ jobs:
         run: flutter build windows --release
       
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: komet-windows
           path: build/windows/runner/Release
@@ -121,7 +121,7 @@ jobs:
         run: flutter build linux --release
       
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: komet-linux
           path: build/linux/x64/release/bundle
