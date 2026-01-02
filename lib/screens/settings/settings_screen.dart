@@ -70,11 +70,11 @@ class _SettingsScreenState extends State<SettingsScreen>
 
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     if (widget.myProfile != null) {
       _myProfile = widget.myProfile;
@@ -575,18 +575,24 @@ class _SettingsScreenState extends State<SettingsScreen>
   Widget _buildProfileSection() {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final screenWidth = MediaQuery.of(context).size.width - 48; 
+    final screenWidth = MediaQuery.of(context).size.width - 48;
 
     final maxOverscroll = 200.0;
-    final expansionProgress = (_overscrollOffset / maxOverscroll).clamp(0.0, 1.0);
-    
+    final expansionProgress = (_overscrollOffset / maxOverscroll).clamp(
+      0.0,
+      1.0,
+    );
+
     const baseAvatarSize = 112.0;
     final expandedSize = screenWidth;
-    final currentSize = baseAvatarSize + (expandedSize - baseAvatarSize) * expansionProgress;
-    
+    final currentSize =
+        baseAvatarSize + (expandedSize - baseAvatarSize) * expansionProgress;
+
     final baseBorderRadius = baseAvatarSize / 2;
     final expandedBorderRadius = 24.0;
-    final currentBorderRadius = baseBorderRadius - (baseBorderRadius - expandedBorderRadius) * expansionProgress;
+    final currentBorderRadius =
+        baseBorderRadius -
+        (baseBorderRadius - expandedBorderRadius) * expansionProgress;
 
     if (_isProfileLoading) {
       return Padding(
@@ -687,14 +693,16 @@ class _SettingsScreenState extends State<SettingsScreen>
               width: currentSize,
               height: currentSize,
               decoration: BoxDecoration(
-                color: _myProfile!.photoBaseUrl == null 
-                    ? colors.primaryContainer 
+                color: _myProfile!.photoBaseUrl == null
+                    ? colors.primaryContainer
                     : null,
                 borderRadius: BorderRadius.circular(currentBorderRadius),
                 boxShadow: expansionProgress > 0
                     ? [
                         BoxShadow(
-                          color: colors.shadow.withOpacity(0.2 * expansionProgress),
+                          color: colors.shadow.withOpacity(
+                            0.2 * expansionProgress,
+                          ),
                           blurRadius: 20 * expansionProgress,
                           offset: Offset(0, 8 * expansionProgress),
                         ),
@@ -754,11 +762,13 @@ class _SettingsScreenState extends State<SettingsScreen>
             const SizedBox(height: 24),
             GestureDetector(
               onTap: () async {
-                final updatedProfile = await Navigator.of(context).push<Profile?>(
-                  MaterialPageRoute(
-                    builder: (context) => ManageAccountScreen(myProfile: _myProfile!),
-                  ),
-                );
+                final updatedProfile = await Navigator.of(context)
+                    .push<Profile?>(
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ManageAccountScreen(myProfile: _myProfile!),
+                      ),
+                    );
                 if (updatedProfile != null && mounted) {
                   setState(() {
                     _myProfile = updatedProfile;
@@ -788,15 +798,14 @@ class _SettingsScreenState extends State<SettingsScreen>
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 12,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.edit_outlined,
-                      color: colors.primary,
-                      size: 20,
-                    ),
+                    Icon(Icons.edit_outlined, color: colors.primary, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       'Редактировать профиль',
@@ -888,11 +897,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     color: colors.primaryContainer.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    icon,
-                    color: colors.primary,
-                    size: 24,
-                  ),
+                  child: Icon(icon, color: colors.primary, size: 24),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
