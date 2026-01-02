@@ -184,7 +184,11 @@ class ApiService {
 
   Map<String, dynamic>? get lastChatsPayload => _lastChatsPayload;
 
-  void updateChatInListLocally(int chatId, Map<String, dynamic> messageJson, [Map<String, dynamic>? chatJson]) {
+  void updateChatInListLocally(
+    int chatId,
+    Map<String, dynamic> messageJson, [
+    Map<String, dynamic>? chatJson,
+  ]) {
     try {
       _lastChatsPayload ??= {
         'chats': <dynamic>[],
@@ -205,9 +209,10 @@ class ApiService {
 
         final currentUserId = userId;
         final newMessageSenderId = messageJson['sender'];
-        final isMyMessage = currentUserId != null &&
+        final isMyMessage =
+            currentUserId != null &&
             (newMessageSenderId.toString() == currentUserId ||
-             chat['ownerId'] == newMessageSenderId);
+                chat['ownerId'] == newMessageSenderId);
 
         if (!isMyMessage) {
           final currentCount = chat['newMessages'] as int? ?? 0;
@@ -221,10 +226,7 @@ class ApiService {
           'cmd': 0,
           'seq': -1,
           'opcode': 64,
-          'payload': {
-            'chatId': chatId,
-            'chat': chat,
-          },
+          'payload': {'chatId': chatId, 'chat': chat},
         });
       } else if (chatJson != null) {
         chats.insert(0, chatJson);
@@ -234,14 +236,10 @@ class ApiService {
           'cmd': 0,
           'seq': -1,
           'opcode': 64,
-          'payload': {
-            'chatId': chatId,
-            'chat': chatJson,
-          },
+          'payload': {'chatId': chatId, 'chat': chatJson},
         });
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   int _reconnectDelaySeconds = 2;
@@ -257,8 +255,8 @@ class ApiService {
     if (_isConnecting || _isReconnecting) return true;
     final state = _connectionStateManager.currentInfo.state;
     return state == conn_state.ConnectionState.connecting ||
-           state == conn_state.ConnectionState.reconnecting ||
-           state == conn_state.ConnectionState.connected;
+        state == conn_state.ConnectionState.reconnecting ||
+        state == conn_state.ConnectionState.connected;
   }
 
   void _log(
@@ -317,21 +315,22 @@ class ApiService {
     } else {
       await _generateAndSaveRandomSpoofing();
       final generatedData = await SpoofingService.getSpoofedSessionData();
-      
+
       if (generatedData != null) {
         return {
           'deviceType': generatedData['device_type'] as String? ?? 'ANDROID',
           'locale': generatedData['locale'] as String? ?? 'ru',
           'deviceLocale': generatedData['locale'] as String? ?? 'ru',
           'osVersion': generatedData['os_version'] as String? ?? 'Android 14',
-          'deviceName': generatedData['device_name'] as String? ?? 'Samsung Galaxy S23',
+          'deviceName':
+              generatedData['device_name'] as String? ?? 'Samsung Galaxy S23',
           'headerUserAgent': generatedData['user_agent'] as String? ?? '',
           'appVersion': generatedData['app_version'] as String? ?? '25.21.3',
           'screen': generatedData['screen'] as String? ?? '1080x2340 3.0x',
           'timezone': generatedData['timezone'] as String? ?? 'Europe/Moscow',
         };
       }
-      
+
       return {
         'deviceType': 'ANDROID',
         'locale': 'ru',
@@ -349,26 +348,24 @@ class ApiService {
 
   Future<void> _generateAndSaveRandomSpoofing() async {
     final prefs = await SharedPreferences.getInstance();
-    
 
     if (prefs.getBool('spoofing_enabled') == true) {
       return;
     }
-    
 
     final availablePresets = devicePresets
-        .where((p) => p.deviceType != 'WEB') //✖️✖️✖️✖️✖️ ЗАПРЕТ НЕЛЬЗЯ АЛО ✖️✖️✖️✖️
+        .where(
+          (p) => p.deviceType != 'WEB',
+        ) //✖️✖️✖️✖️✖️ ЗАПРЕТ НЕЛЬЗЯ АЛО ✖️✖️✖️✖️
         .toList();
-    
+
     if (availablePresets.isEmpty) {
       return;
     }
-    
-  
+
     final random = Random();
     final preset = availablePresets[random.nextInt(availablePresets.length)];
-    
-   
+
     String timezone;
     try {
       final timezoneInfo = await FlutterTimezone.getLocalTimezone();
@@ -376,11 +373,11 @@ class ApiService {
     } catch (_) {
       timezone = preset.timezone;
     }
-    
+
     final locale = Platform.localeName.split('_').first;
-    
+
     final deviceId = generateRandomDeviceId();
-    
+
     await prefs.setBool('spoofing_enabled', true);
     await prefs.setString('spoof_useragent', preset.userAgent);
     await prefs.setString('spoof_devicename', preset.deviceName);
@@ -391,8 +388,10 @@ class ApiService {
     await prefs.setString('spoof_deviceid', deviceId);
     await prefs.setString('spoof_devicetype', preset.deviceType);
     await prefs.setString('spoof_appversion', '25.21.3');
-    
-    print('✅ Автоматически сгенерирован спуфинг: ${preset.deviceType} - ${preset.deviceName}');
+
+    print(
+      '✅ Автоматически сгенерирован спуфинг: ${preset.deviceType} - ${preset.deviceName}',
+    );
   }
 
   bool get isAppInForeground => _isAppInForeground;
@@ -529,7 +528,6 @@ class ApiService {
         'payload': payload,
       };
 
-      
       _emitLocal(message);
 
       final completer = _pending[seq];
@@ -654,10 +652,7 @@ class ApiService {
       }
 
       try {
-        final decompressed = _lz4DecompressBlockPure(
-          compressedBytes,
-          500000,
-        );
+        final decompressed = _lz4DecompressBlockPure(compressedBytes, 500000);
 
         final nested = _deserializeMsgpack(decompressed);
         return nested ?? decompressed;

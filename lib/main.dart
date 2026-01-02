@@ -58,7 +58,6 @@ Future<void> main() async {
   NotificationService().setNavigatorKey(navigatorKey);
   print("NotificationService инициализирован");
 
-
   if (Platform.isAndroid) {
     print("Инициализируем фоновый сервис для Android...");
     await initializeBackgroundService();
@@ -146,7 +145,9 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
           pageTransitionsTheme: pageTransitionsTheme,
           shadowColor: themeProvider.optimization ? Colors.transparent : null,
-          splashFactory: themeProvider.optimization ? NoSplash.splashFactory : null,
+          splashFactory: themeProvider.optimization
+              ? NoSplash.splashFactory
+              : null,
           appBarTheme: AppBarTheme(
             titleTextStyle: TextStyle(
               fontSize: 16,
@@ -169,7 +170,9 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
           pageTransitionsTheme: pageTransitionsTheme,
           shadowColor: themeProvider.optimization ? Colors.transparent : null,
-          splashFactory: themeProvider.optimization ? NoSplash.splashFactory : null,
+          splashFactory: themeProvider.optimization
+              ? NoSplash.splashFactory
+              : null,
           appBarTheme: AppBarTheme(
             titleTextStyle: TextStyle(
               fontSize: 16,
