@@ -36,9 +36,8 @@ jobs:
       - name: Build App Bundle
         run: flutter
         
-              - name: Configure Gradle
-        run: |
-          mkdir -p ~/.gradle
+      - name: Configure Gradle     
+        run: |          mkdir -p ~/.gradle
           echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" >> ~/.gradle/gradle.properties
           echo "kotlin.daemon.jvmargs=-Xmx1536m" >> ~/.gradle/gradle.properties      
       - name: Upload APK artifact
