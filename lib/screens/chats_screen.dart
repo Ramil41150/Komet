@@ -28,6 +28,7 @@ import 'package:gwid/services/local_profile_manager.dart';
 import 'package:gwid/widgets/contact_name_widget.dart';
 import 'package:gwid/widgets/contact_avatar_widget.dart';
 import 'package:gwid/services/account_manager.dart';
+import 'package:gwid/services/chat_cache_service.dart';
 import 'package:gwid/models/account.dart';
 import 'package:gwid/services/message_queue_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -101,6 +102,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   bool _isReconnecting = false;
 
   SharedPreferences? _prefs;
+  Map<int, Map<String, dynamic>> _chatDrafts = {};
 
   Future<void> _initializePrefs() async {
     final p = await SharedPreferences.getInstance();
@@ -121,7 +123,9 @@ class _ChatsScreenState extends State<ChatsScreen>
     _chatsFuture = (() async {
       try {
         await ApiService.instance.waitUntilOnline();
-        return ApiService.instance.getChatsAndContacts();
+        final result = await ApiService.instance.getChatsAndContacts();
+        await _loadChatDrafts();
+        return result;
       } catch (e) {
         print('Ошибка получения чатов: $e');
         if (e.toString().contains('Auth token not found') ||
@@ -146,6 +150,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     _searchFocusNode.addListener(_onSearchFocusChanged);
 
     _listenForUpdates();
+    _loadChatDrafts();
 
     _connectionStateSubscription = ApiService.instance.connectionStatus.listen((
       status,
@@ -264,6 +269,49 @@ class _ChatsScreenState extends State<ChatsScreen>
         });
         print("Ошибка загрузки профиля в ChatsScreen: $e");
       }
+    }
+  }
+
+  void _updateChatLastMessage(int chatId, Message? newLastMessage) {
+    final chatIndex = _allChats.indexWhere((chat) => chat.id == chatId);
+    if (chatIndex != -1) {
+      final updatedChat = _allChats[chatIndex].copyWith(lastMessage: newLastMessage);
+      setState(() {
+        _allChats[chatIndex] = updatedChat;
+      });
+    }
+  }
+
+  void _updateChatDraft(int chatId, Map<String, dynamic>? draft) {
+    setState(() {
+      if (draft != null) {
+        _chatDrafts[chatId] = draft;
+      } else {
+        _chatDrafts.remove(chatId);
+      }
+    });
+  }
+
+  Future<void> _loadChatDrafts() async {
+    try {
+      final chatCacheService = ChatCacheService();
+      await chatCacheService.initialize();
+
+      final drafts = <int, Map<String, dynamic>>{};
+      for (final chat in _allChats) {
+        final draft = await chatCacheService.getChatInputState(chat.id);
+        if (draft != null && draft['text']?.toString().trim().isNotEmpty == true) {
+          drafts[chat.id] = draft;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _chatDrafts = drafts;
+        });
+      }
+    } catch (e) {
+      print('Ошибка загрузки черновиков: $e');
     }
   }
 
@@ -997,6 +1045,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       });
 
       _filterChats();
+      _loadChatDrafts();
     });
   }
 
@@ -2133,6 +2182,12 @@ class _ChatsScreenState extends State<ChatsScreen>
                         participantCount: participantCount,
                         onChatUpdated: () {
                           _loadChatsAndContacts();
+                        },
+                        onLastMessageChanged: (Message? newLastMessage) {
+                          _updateChatLastMessage(chat.id, newLastMessage);
+                        },
+                        onDraftChanged: (int chatId, Map<String, dynamic>? draft) {
+                          _updateChatDraft(chatId, draft);
                         },
                         onChatRemoved: () {
                           _removeChatLocally(chat.id);
@@ -3624,7 +3679,35 @@ class _ChatsScreenState extends State<ChatsScreen>
     final message = chat.lastMessage;
     final colors = Theme.of(context).colorScheme;
 
-    // Проверяем, наше ли последнее сообщение
+    final draftState = _chatDrafts[chat.id];
+    if (draftState != null) {
+      final draftText = draftState['text']?.toString().trim();
+      if (draftText != null && draftText.isNotEmpty) {
+        return RichText(
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: 'Черновик:',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              TextSpan(
+                text: draftText,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
     final isMyMessage =
         _myProfile != null && message.senderId == _myProfile!.id;
 
@@ -4256,6 +4339,12 @@ class _ChatsScreenState extends State<ChatsScreen>
                 isChannel: isChannel,
                 participantCount: participantCount,
                 initialUnreadCount: chat.newMessages,
+                onLastMessageChanged: (Message? newLastMessage) {
+                  _updateChatLastMessage(chat.id, newLastMessage);
+                },
+                onDraftChanged: (int chatId, Map<String, dynamic>? draft) {
+                  _updateChatDraft(chatId, draft);
+                },
                 onChatRemoved: () {
                   _removeChatLocally(chat.id);
                 },
