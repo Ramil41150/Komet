@@ -1264,7 +1264,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               );
             }
             if (snapshot.hasData) {
-              if (_allChats.isEmpty) {
+              if (!_chatsLoaded) {
                 final chatListJson = snapshot.data!['chats'] as List;
                 final contactListJson = snapshot.data!['contacts'] as List;
                 _allChats = chatListJson
