@@ -185,6 +185,7 @@ class ChatCacheService {
               'cid': message.cid,
               'reactionInfo': message.reactionInfo,
               'link': message.link,
+              'isDeleted': message.isDeleted,
             },
           )
           .toList();

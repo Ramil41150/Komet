@@ -828,6 +828,7 @@ class ChatMessageBubble extends StatelessWidget {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -961,6 +962,31 @@ class ChatMessageBubble extends StatelessWidget {
       bubbleDecoration,
       messageContentChildren,
     );
+
+    if (message.isDeleted && themeProvider.showDeletedMessages) {
+      messageContent = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          messageContent,
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error,
+                size: 14,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     if (onReaction != null || (isMe && (onEdit != null || onDelete != null))) {
       if (isMobile) {

@@ -142,6 +142,7 @@ class CustomThemePreset {
 
   UIMode uiMode;
   bool showSeconds;
+  bool showDeletedMessages;
   double messageBubbleOpacity;
   String messageStyle;
   double messageBackgroundBlur;
@@ -219,6 +220,7 @@ class CustomThemePreset {
     this.profileDialogOpacity = 0.26,
     this.uiMode = UIMode.both,
     this.showSeconds = false,
+    this.showDeletedMessages = false,
     this.messageBubbleOpacity = 0.12,
     this.messageStyle = 'glass',
     this.messageBackgroundBlur = 0.0,
@@ -302,6 +304,7 @@ class CustomThemePreset {
     double? profileDialogOpacity,
     UIMode? uiMode,
     bool? showSeconds,
+    bool? showDeletedMessages,
     double? messageBubbleOpacity,
     String? messageStyle,
     double? messageBackgroundBlur,
@@ -381,6 +384,7 @@ class CustomThemePreset {
       profileDialogOpacity: profileDialogOpacity ?? this.profileDialogOpacity,
       uiMode: uiMode ?? this.uiMode,
       showSeconds: showSeconds ?? this.showSeconds,
+      showDeletedMessages: showDeletedMessages ?? this.showDeletedMessages,
       messageBubbleOpacity: messageBubbleOpacity ?? this.messageBubbleOpacity,
       messageStyle: messageStyle ?? this.messageStyle,
       messageBackgroundBlur:
@@ -473,6 +477,7 @@ class CustomThemePreset {
       'profileDialogOpacity': profileDialogOpacity,
       'uiMode': uiMode.index,
       'showSeconds': showSeconds,
+      'showDeletedMessages': showDeletedMessages,
       'messageBubbleOpacity': messageBubbleOpacity,
       'messageStyle': messageStyle,
       'messageBackgroundBlur': messageBackgroundBlur,
@@ -567,6 +572,7 @@ class CustomThemePreset {
           .clamp(0.0, 1.0),
       uiMode: UIMode.values[json['uiMode'] as int? ?? 0],
       showSeconds: json['showSeconds'] as bool? ?? false,
+      showDeletedMessages: json['showDeletedMessages'] as bool? ?? false,
       messageBubbleOpacity: (json['messageBubbleOpacity'] as double? ?? 0.12)
           .clamp(0.0, 1.0),
       messageStyle: json['messageStyle'] as String? ?? 'glass',
@@ -694,6 +700,7 @@ class ThemeProvider with ChangeNotifier {
   Timer? _useGradientForAddAccountButtonSaveTimer;
   Timer? _useGlassPanelsSaveTimer;
   Timer? _materialYouSaveTimer;
+  Timer? _showDeletedMessagesSaveTimer;
   bool _showSeconds = false;
 
   Color? _myBubbleColorLight;
@@ -760,6 +767,7 @@ class ThemeProvider with ChangeNotifier {
 
   UIMode get uiMode => _activeTheme.uiMode;
   bool get showSeconds => _showSeconds;
+  bool get showDeletedMessages => _activeTheme.showDeletedMessages;
   double get messageBubbleOpacity => _activeTheme.messageBubbleOpacity;
   String get messageStyle => _activeTheme.messageStyle;
   double get messageBackgroundBlur => _activeTheme.messageBackgroundBlur;
@@ -1393,6 +1401,14 @@ class ThemeProvider with ChangeNotifier {
     _showSecondsSaveTimer = Timer(const Duration(milliseconds: 300), () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('show_seconds', value);
+    });
+  }
+
+  Future<void> setShowDeletedMessages(bool value) async {
+    _activeTheme = _activeTheme.copyWith(showDeletedMessages: value);
+    _showDeletedMessagesSaveTimer?.cancel();
+    _showDeletedMessagesSaveTimer = Timer(const Duration(milliseconds: 300), () async {
+      await _saveActiveTheme();
     });
   }
 

@@ -18,6 +18,7 @@ class _SpecialSettingsScreenState extends State<SpecialSettingsScreen>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late bool _showSecondsValue;
+  late bool _showDeletedMessagesValue;
 
   @override
   void initState() {
@@ -41,9 +42,9 @@ class _SpecialSettingsScreenState extends State<SpecialSettingsScreen>
           ),
         );
 
-    // Инициализируем значение из ThemeProvider
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     _showSecondsValue = themeProvider.showSeconds;
+    _showDeletedMessagesValue = themeProvider.showDeletedMessages;
 
     _animationController.forward();
   }
@@ -315,6 +316,54 @@ class _SpecialSettingsScreenState extends State<SpecialSettingsScreen>
                         _showSecondsValue = value;
                       });
                       themeProvider.setShowSeconds(value);
+                    },
+                    activeThumbColor: colors.primary,
+                    activeTrackColor: colors.primary.withValues(alpha: 0.5),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.delete_outline, color: colors.primary, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Show deleted messages',
+                          style: GoogleFonts.manrope(
+                            textStyle: textTheme.titleMedium,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Показывать удаленные сообщения с иконкой мусорки',
+                          style: GoogleFonts.manrope(
+                            textStyle: textTheme.bodySmall,
+                            color: colors.onSurfaceVariant,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _showDeletedMessagesValue,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _showDeletedMessagesValue = value;
+                      });
+                      themeProvider.setShowDeletedMessages(value);
                     },
                     activeThumbColor: colors.primary,
                     activeTrackColor: colors.primary.withValues(alpha: 0.5),

@@ -1138,9 +1138,10 @@ class _ChatScreenState extends State<ChatScreen> {
       final seq = message['seq'];
       final payload = message['payload'];
 
+
       if (payload is! Map<String, dynamic>) return;
 
-      final dynamic incomingChatId = payload['chatId'];
+      final dynamic incomingChatId = payload['chatId'] ?? payload['chat']?['id'];
       final int? chatIdNormalized = incomingChatId is int
           ? incomingChatId
           : int.tryParse(incomingChatId?.toString() ?? '');
@@ -1232,6 +1233,16 @@ class _ChatScreenState extends State<ChatScreen> {
             _updateMessage(editedMessage);
           }
         });
+      } else if (opcode == 66 || opcode == 142) {
+        final rawMessageIds = payload['messageIds'] as List<dynamic>? ?? [];
+        final deletedMessageIds = rawMessageIds.map((id) => id.toString()).toList();
+        if (deletedMessageIds.isNotEmpty) {
+          Future.microtask(() {
+            if (mounted) {
+              _handleDeletedMessages(deletedMessageIds);
+            }
+          });
+        }
       } else if (opcode == 178) {
         if (cmd == 0x100 || cmd == 256) {
           final messageId = _pendingReactionSeqs[seq];
@@ -1416,14 +1427,19 @@ class _ChatScreenState extends State<ChatScreen> {
         // Объединяем кеш и новые сообщения, убирая дубликаты
         final Map<String, Message> messagesMap = {};
 
-        for (final msg in _messages) {
-          messagesMap[msg.id] = msg;
-        }
+        final Set<String> serverMessageIds = {};
 
         for (final msg in allMessages) {
-          if (!msg.id.startsWith('local_') ||
-              !messagesMap.containsKey(msg.id)) {
-            messagesMap[msg.id] = msg;
+          messagesMap[msg.id] = msg;
+          serverMessageIds.add(msg.id);
+        }
+
+        final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+        if (themeProvider.showDeletedMessages && hasCache) {
+          for (final cachedMsg in _messages) {
+            if (!serverMessageIds.contains(cachedMsg.id)) {
+              messagesMap[cachedMsg.id] = cachedMsg.copyWith(isDeleted: true);
+            }
           }
         }
 
@@ -2100,16 +2116,41 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _handleDeletedMessages(List<String> deletedMessageIds) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final showDeletedMessages = themeProvider.showDeletedMessages;
+
+    if (showDeletedMessages) {
+      // Если включено показ удаленных сообщений, помечаем их как удаленные
+      for (final messageId in deletedMessageIds) {
+        final messageIndex = _messages.indexWhere((m) => m.id == messageId);
+        if (messageIndex != -1) {
+          _messages[messageIndex] = _messages[messageIndex].copyWith(isDeleted: true);
+        }
+      }
+      _buildChatItems();
+      if (mounted) {
+        setState(() {});
+      }
+    } else {
+      // Если выключено, просто удаляем сообщения
+      _removeMessages(deletedMessageIds);
+    }
+  }
+
   void _removeMessages(List<String> messageIds) {
     _deletingMessageIds.addAll(messageIds);
+
     if (mounted) {
       setState(() {});
     }
+    _buildChatItems();
 
     Future.delayed(const Duration(milliseconds: 300), () {
       final removedCount = _messages.length;
       _messages.removeWhere((message) => messageIds.contains(message.id));
       final actuallyRemoved = removedCount - _messages.length;
+
       if (actuallyRemoved > 0) {
         _deletingMessageIds.removeAll(messageIds);
         for (final messageId in messageIds) {
