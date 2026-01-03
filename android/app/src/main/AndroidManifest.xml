@@ -64,7 +64,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Receiver для обработки inline reply из уведомлений -->
+        <!-- Receiver for handling inline reply from notifications -->
         <receiver
             android:name=".NotificationReplyReceiver"
             android:exported="false">
