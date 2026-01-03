@@ -114,7 +114,8 @@ class NotificationHelper(private val context: Context) {
         groupTitle: String?,
         enableVibration: Boolean = true,
         vibrationPattern: List<Long>? = null,
-        canReply: Boolean = true
+        canReply: Boolean = true,
+        myName: String? = null
     ) {
         // Преобразуем Long в Int для notification ID (используем hashCode)
         val notificationId = chatId.hashCode()
@@ -180,8 +181,14 @@ class NotificationHelper(private val context: Context) {
             ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
         }
 
-        // Создаём MessagingStyle с накопленными сообщениями
-        val messagingStyle = NotificationCompat.MessagingStyle(person)
+        // Создаём Person для текущего пользователя (я) для MessagingStyle
+        val mePerson = Person.Builder()
+            .setName(myName ?: "Я")
+            .setKey("me")
+            .build()
+
+        // Создаём MessagingStyle с текущим пользователем (я), а не отправителем
+        val messagingStyle = NotificationCompat.MessagingStyle(mePerson)
             .setConversationTitle(if (isGroupChat) groupTitle else senderName)
             .setGroupConversation(isGroupChat)
         

@@ -37,6 +37,7 @@ class MainActivity : FlutterActivity() {
                         val vibrationPattern = call.argument<List<Int>>("vibrationPattern")
                             ?.map { it.toLong() }
                         val canReply = call.argument<Boolean>("canReply") ?: true
+                        val myName = call.argument<String>("myName")
 
                         notificationHelper.showMessageNotification(
                             chatId = chatIdLong,
@@ -47,7 +48,8 @@ class MainActivity : FlutterActivity() {
                             groupTitle = groupTitle,
                             enableVibration = enableVibration,
                             vibrationPattern = vibrationPattern,
-                            canReply = canReply
+                            canReply = canReply,
+                            myName = myName
                         )
                         result.success(true)
                     }

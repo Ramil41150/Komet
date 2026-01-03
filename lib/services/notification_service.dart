@@ -664,6 +664,30 @@ class NotificationService {
     // Определяем, можно ли ответить (нельзя в каналах)
     final canReply = !isChannel;
 
+    // Получаем имя текущего пользователя для корректного отображения в inline reply
+    String? myName;
+    try {
+      final lastPayload = ApiService.instance.lastChatsPayload;
+      if (lastPayload != null) {
+        final profileData = lastPayload['profile'] as Map<String, dynamic>?;
+        final contactProfile = profileData?['contact'] as Map<String, dynamic>?;
+        if (contactProfile != null) {
+          final names = contactProfile['names'] as List<dynamic>? ?? [];
+          if (names.isNotEmpty) {
+            final nameData = names[0] as Map<String, dynamic>;
+            final firstName = nameData['firstName'] as String? ?? '';
+            final lastName = nameData['lastName'] as String? ?? '';
+            myName = '$firstName $lastName'.trim();
+            if (myName?.isEmpty == true) {
+              myName = null;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print("⚠️ Ошибка получения имени пользователя: $e");
+    }
+
     // На Android используем нативный канал для стиля как в Telegram
     if (Platform.isAndroid) {
       try {
@@ -677,6 +701,7 @@ class NotificationService {
           'enableVibration': enableVibration,
           'vibrationPattern': vibrationPattern,
           'canReply': canReply,
+          'myName': myName,
         });
         print(
           "🔔 Показано нативное уведомление Android: ${isGroupChat ? '[$groupTitle] ' : ''}$senderName - $displayText (canReply: $canReply)",
