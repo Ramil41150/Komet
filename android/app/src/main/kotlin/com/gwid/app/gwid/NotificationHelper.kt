@@ -240,7 +240,7 @@ class NotificationHelper(private val context: Context) {
                 .setLabel(replyLabel)
                 .build()
 
-            val replyIntent = Intent(context, MainActivity::class.java).apply {
+            val replyIntent = Intent(context, NotificationReplyReceiver::class.java).apply {
                 action = "com.gwid.app.REPLY_ACTION"
                 putExtra("chat_id", chatId)
                 putExtra("sender_name", senderName)
@@ -248,7 +248,7 @@ class NotificationHelper(private val context: Context) {
                 putExtra("group_title", groupTitle)
             }
 
-            val replyPendingIntent = PendingIntent.getActivity(
+            val replyPendingIntent = PendingIntent.getBroadcast(
                 context,
                 (chatId.hashCode() + 1),
                 replyIntent,
