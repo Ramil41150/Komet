@@ -85,6 +85,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   String _searchFilter = 'all';
   bool _hasRequestedBlockedContacts = false;
   final Set<int> _loadingContactIds = {};
+  bool _isSwitchingAccounts = false;
 
   List<ChatFolder> _folders = [];
   String? _selectedFolderId;
@@ -320,6 +321,13 @@ class _ChatsScreenState extends State<ChatsScreen>
   }
 
   void _showTokenExpiredDialog(String message) {
+    // Don't show dialog if we're in the middle of switching accounts
+    // The account switcher will handle the error
+    if (_isSwitchingAccounts) {
+      print('Пропускаем диалог недействительного токена - переключение аккаунтов');
+      return;
+    }
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1577,6 +1585,9 @@ class _ChatsScreenState extends State<ChatsScreen>
                                           ? null
                                           : () async {
                                               Navigator.pop(context);
+                                              setState(() {
+                                                _isSwitchingAccounts = true;
+                                              });
                                               try {
                                                 await ApiService.instance
                                                     .switchAccount(account.id);
@@ -1644,6 +1655,12 @@ class _ChatsScreenState extends State<ChatsScreen>
                                                       ),
                                                     );
                                                   }
+                                                }
+                                              } finally {
+                                                if (mounted) {
+                                                  setState(() {
+                                                    _isSwitchingAccounts = false;
+                                                  });
                                                 }
                                               }
                                             },
