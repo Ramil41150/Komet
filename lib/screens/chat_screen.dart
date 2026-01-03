@@ -55,6 +55,8 @@ class ChatScreen extends StatefulWidget {
   final Message? pinnedMessage;
 
   final VoidCallback? onChatUpdated;
+  final Function(Message?)? onLastMessageChanged;
+  final Function(int, Map<String, dynamic>?)? onDraftChanged;
 
   final VoidCallback? onChatRemoved;
   final bool isGroupChat;
@@ -70,6 +72,8 @@ class ChatScreen extends StatefulWidget {
     required this.myId,
     this.pinnedMessage,
     this.onChatUpdated,
+    this.onLastMessageChanged,
+    this.onDraftChanged,
     this.onChatRemoved,
     this.isGroupChat = false,
     this.isChannel = false,
@@ -652,7 +656,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _textController.addListener(() {
       _handleTextChangedForKometColor();
       _updateTextSelectionState();
-      _saveInputState();
     });
 
     _textFocusNode.addListener(() {
@@ -664,6 +667,7 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           _hasTextSelection = false;
         });
+        _saveInputState();
       }
     });
 
@@ -736,12 +740,21 @@ class _ChatScreenState extends State<ChatScreen> {
         };
       }
 
+      final draftData = text.trim().isNotEmpty ? {
+        'text': text,
+        'elements': elements,
+        'replyingToMessage': replyingToMessageData,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      } : null;
+
       await ChatCacheService().saveChatInputState(
         widget.chatId,
         text: text,
         elements: elements,
         replyingToMessage: replyingToMessageData,
       );
+
+      widget.onDraftChanged?.call(widget.chatId, draftData);
     } catch (e) {
       print('Ошибка сохранения состояния ввода: $e');
     }
@@ -2397,6 +2410,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
 
       await ChatCacheService().clearChatInputState(widget.chatId);
+      widget.onDraftChanged?.call(widget.chatId, null);
     }
   }
 
@@ -2407,6 +2421,9 @@ class _ChatScreenState extends State<ChatScreen> {
       MessageQueueService().removeFromQueue('msg_$cid');
     }
     _removeMessages([message.id]);
+    unawaited(ApiService.instance.updateChatLastMessage(widget.chatId).then((newLastMessage) {
+      widget.onLastMessageChanged?.call(newLastMessage);
+    }));
   }
 
   Future<void> _retryPendingMessage(Message message) async {
@@ -3505,7 +3522,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                                       item.message.id,
                                                       forMe: true,
                                                     );
-                                                widget.onChatUpdated?.call();
+                                                final newLastMessage = await ApiService.instance.updateChatLastMessage(widget.chatId);
+                                                widget.onLastMessageChanged?.call(newLastMessage);
                                               }
                                             : null,
                                         onDeleteForAll: isMe
@@ -3519,7 +3537,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                                       item.message.id,
                                                       forMe: false,
                                                     );
-                                                widget.onChatUpdated?.call();
+                                                final newLastMessage = await ApiService.instance.updateChatLastMessage(widget.chatId);
+                                                widget.onLastMessageChanged?.call(newLastMessage);
                                               }
                                             : null,
                                         onReaction: (emoji) async {
