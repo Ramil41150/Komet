@@ -165,7 +165,6 @@ class _ChatsScreenState extends State<ChatsScreen>
             print("🔄 ChatsScreen: Обновление чатов запущено");
           }
         });
-
   }
 
   @override
@@ -361,7 +360,9 @@ class _ChatsScreenState extends State<ChatsScreen>
             .toList();
         _contacts.clear();
         for (final contactJson in contacts) {
-          final contact = Contact.fromJson((contactJson as Map).cast<String, dynamic>());
+          final contact = Contact.fromJson(
+            (contactJson as Map).cast<String, dynamic>(),
+          );
           _contacts[contact.id] = contact;
         }
 
@@ -376,7 +377,6 @@ class _ChatsScreenState extends State<ChatsScreen>
       }
     });
   }
-
 
   void _showAddMenu(BuildContext context) {
     showModalBottomSheet(
@@ -979,10 +979,14 @@ class _ChatsScreenState extends State<ChatsScreen>
           }
         }
 
-        _allChats.removeWhere((chat) => !newChatIds.contains(chat.id) && chat.id != 0);
+        _allChats.removeWhere(
+          (chat) => !newChatIds.contains(chat.id) && chat.id != 0,
+        );
 
         for (final contactJson in contacts) {
-          final contact = Contact.fromJson((contactJson as Map).cast<String, dynamic>());
+          final contact = Contact.fromJson(
+            (contactJson as Map).cast<String, dynamic>(),
+          );
           _contacts[contact.id] = contact;
         }
 
@@ -1208,13 +1212,15 @@ class _ChatsScreenState extends State<ChatsScreen>
                 final chatListJson = snapshot.data!['chats'] as List;
                 final contactListJson = snapshot.data!['contacts'] as List;
                 _allChats = chatListJson
-                    .map((json) => Chat.fromJson((json as Map<String, dynamic>)))
+                    .map(
+                      (json) => Chat.fromJson((json as Map<String, dynamic>)),
+                    )
                     .toList();
                 _chatsLoaded = true;
                 _listenForUpdates();
-                  final contacts = contactListJson.map(
-                    (json) => Contact.fromJson(json as Map<String, dynamic>),
-                  );
+                final contacts = contactListJson.map(
+                  (json) => Contact.fromJson(json as Map<String, dynamic>),
+                );
                 _contacts = {for (var c in contacts) c.id: c};
 
                 final presence =
@@ -2103,7 +2109,8 @@ class _ChatsScreenState extends State<ChatsScreen>
                       isBlockedByMe: false,
                     );
 
-                if (widget.isForwardMode && widget.onForwardChatSelected != null) {
+                if (widget.isForwardMode &&
+                    widget.onForwardChatSelected != null) {
                   widget.onForwardChatSelected!(chat);
                 } else if (widget.onChatSelected != null) {
                   widget.onChatSelected!(
@@ -3136,19 +3143,19 @@ class _ChatsScreenState extends State<ChatsScreen>
               onPressed: () => Navigator.of(context).pop(),
             )
           : _isSearchExpanded
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: _clearSearch,
-                )
-              : Builder(
-                  builder: (context) {
-                    return IconButton(
-                      icon: const Icon(Icons.menu_rounded),
-                      onPressed: () => Scaffold.of(context).openDrawer(),
-                      tooltip: 'Меню',
-                    );
-                  },
-                ),
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _clearSearch,
+            )
+          : Builder(
+              builder: (context) {
+                return IconButton(
+                  icon: const Icon(Icons.menu_rounded),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  tooltip: 'Меню',
+                );
+              },
+            ),
 
       title: widget.isForwardMode
           ? const Text(
@@ -3156,104 +3163,104 @@ class _ChatsScreenState extends State<ChatsScreen>
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             )
           : _isSearchExpanded
-              ? _buildSearchField(colors)
-              : Row(
-                  children: [
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder:
-                            (Widget child, Animation<double> animation) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              );
-                            },
-                        layoutBuilder: (currentChild, previousChildren) {
-                              return Stack(
-                                alignment: Alignment.centerLeft,
-                                children: [
-                                  ...previousChildren,
-                                  if (currentChild != null) currentChild,
-                                ],
-                              );
-                            },
-                        child: _buildCurrentTitleWidget(),
-                      ),
-                    ),
-                  ],
+          ? _buildSearchField(colors)
+          : Row(
+              children: [
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
+                    layoutBuilder: (currentChild, previousChildren) {
+                      return Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      );
+                    },
+                    child: _buildCurrentTitleWidget(),
+                  ),
                 ),
+              ],
+            ),
       actions: widget.isForwardMode
           ? []
           : _isSearchExpanded
-              ? [
-                  if (_searchQuery.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      child: IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                        },
-                      ),
-                    ),
-                  Container(
-                    margin: const EdgeInsets.only(left: 4),
-                    child: IconButton(
-                      icon: const Icon(Icons.filter_list),
-                      onPressed: _showSearchFilters,
-                    ),
-                  ),
-                ]
-              : [
-                  if ((_prefs?.getBool('show_sferum_button') ?? true))
-                    IconButton(
-                      icon: Image.asset(
-                        'assets/images/spermum.png',
-                        width: 28,
-                        height: 28,
-                      ),
-                      onPressed: _openSferum,
-                      tooltip: 'Сферум',
-                    ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.download, //ахуеть линтер ошибок не дал ! ! !
-                      color: Colors.white,
-                    ),
+          ? [
+              if (_searchQuery.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(left: 4),
+                  child: IconButton(
+                    icon: const Icon(Icons.clear),
                     onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const DownloadsScreen(),
-                        ),
-                      );
+                      _searchController.clear();
                     },
-                    tooltip: 'Загрузки',
                   ),
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _isSearchExpanded = true;
-                      });
-                      _searchAnimationController.forward();
-                      _searchFocusNode.requestFocus();
-                    },
-
-                    onLongPress: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const UserIdLookupScreen(),
-                        ),
-                      );
-                    },
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      padding: const EdgeInsets.all(8.0),
-                      child: const Icon(Icons.search),
+                ),
+              Container(
+                margin: const EdgeInsets.only(left: 4),
+                child: IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: _showSearchFilters,
+                ),
+              ),
+            ]
+          : [
+              if ((_prefs?.getBool('show_sferum_button') ?? true))
+                IconButton(
+                  icon: Image.asset(
+                    'assets/images/spermum.png',
+                    width: 28,
+                    height: 28,
+                  ),
+                  onPressed: _openSferum,
+                  tooltip: 'Сферум',
+                ),
+              IconButton(
+                icon: Icon(
+                  Icons.download, //ахуеть линтер ошибок не дал ! ! !
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const DownloadsScreen(),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
+                  );
+                },
+                tooltip: 'Загрузки',
+              ),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isSearchExpanded = true;
+                  });
+                  _searchAnimationController.forward();
+                  _searchFocusNode.requestFocus();
+                },
+
+                onLongPress: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const UserIdLookupScreen(),
+                    ),
+                  );
+                },
+                customBorder: const CircleBorder(),
+                child: Container(
+                  padding: const EdgeInsets.all(8.0),
+                  child: const Icon(Icons.search),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
     );
   }
 
@@ -3459,16 +3466,21 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  Message? _extractForwardedMessage(Map<String, dynamic> link, Message fallback) {
+  Message? _extractForwardedMessage(
+    Map<String, dynamic> link,
+    Message fallback,
+  ) {
     final forwardedMessage = link['message'] as Map<String, dynamic>?;
     if (forwardedMessage == null) return null;
 
-    final attaches = (forwardedMessage['attaches'] as List?)
+    final attaches =
+        (forwardedMessage['attaches'] as List?)
             ?.map((e) => (e as Map).cast<String, dynamic>())
             .toList() ??
         const [];
 
-    final elements = (forwardedMessage['elements'] as List?)
+    final elements =
+        (forwardedMessage['elements'] as List?)
             ?.map((e) => (e as Map).cast<String, dynamic>())
             .toList() ??
         const [];
@@ -3555,8 +3567,12 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     Widget messagePreview;
     if (message.text.isEmpty && message.attaches.isNotEmpty) {
-      final hasPhoto = message.attaches.any((attach) => attach['_type'] == 'PHOTO');
-      final hasContact = message.attaches.any((attach) => attach['_type'] == 'CONTACT');
+      final hasPhoto = message.attaches.any(
+        (attach) => attach['_type'] == 'PHOTO',
+      );
+      final hasContact = message.attaches.any(
+        (attach) => attach['_type'] == 'CONTACT',
+      );
 
       if (hasPhoto) {
         messagePreview = _buildPhotoAttachmentPreview(message);
@@ -3572,7 +3588,9 @@ class _ChatsScreenState extends State<ChatsScreen>
         );
       }
     } else if (message.attaches.isNotEmpty) {
-      final hasPhoto = message.attaches.any((attach) => attach['_type'] == 'PHOTO');
+      final hasPhoto = message.attaches.any(
+        (attach) => attach['_type'] == 'PHOTO',
+      );
       if (hasPhoto) {
         messagePreview = _buildPhotoWithCaptionPreview(message);
       } else {
@@ -3607,7 +3625,8 @@ class _ChatsScreenState extends State<ChatsScreen>
     final colors = Theme.of(context).colorScheme;
 
     // Проверяем, наше ли последнее сообщение
-    final isMyMessage = _myProfile != null && message.senderId == _myProfile!.id;
+    final isMyMessage =
+        _myProfile != null && message.senderId == _myProfile!.id;
 
     Widget messagePreview;
     if (message.isForwarded && message.link is Map<String, dynamic>) {
@@ -3648,8 +3667,9 @@ class _ChatsScreenState extends State<ChatsScreen>
     // Если это наше сообщение - добавляем статус
     if (isMyMessage) {
       final queueItem = MessageQueueService().findByCid(message.cid ?? 0);
-      final bool isPending = queueItem != null || message.id.startsWith('local_');
-      
+      final bool isPending =
+          queueItem != null || message.id.startsWith('local_');
+
       return Row(
         children: [
           if (isPending)
@@ -3769,7 +3789,9 @@ class _ChatsScreenState extends State<ChatsScreen>
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface, // Белый цвет вместо серого
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface, // Белый цвет вместо серого
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -3840,13 +3862,16 @@ class _ChatsScreenState extends State<ChatsScreen>
     return null;
   }
 
-  Map<String, String?>? _extractFirstContactData(List<Map<String, dynamic>> attaches) {
+  Map<String, String?>? _extractFirstContactData(
+    List<Map<String, dynamic>> attaches,
+  ) {
     for (final attach in attaches) {
       if (attach['_type'] == 'CONTACT') {
         final name = attach['name'] as String?;
         final firstName = attach['firstName'] as String?;
         final lastName = attach['lastName'] as String?;
-        final photoUrl = attach['photoUrl'] as String? ?? attach['baseUrl'] as String?;
+        final photoUrl =
+            attach['photoUrl'] as String? ?? attach['baseUrl'] as String?;
 
         // Формируем отображаемое имя
         String displayName;
@@ -3860,10 +3885,7 @@ class _ChatsScreenState extends State<ChatsScreen>
           displayName = 'Контакт';
         }
 
-        return {
-          'name': displayName,
-          'photoUrl': photoUrl,
-        };
+        return {'name': displayName, 'photoUrl': photoUrl};
       }
     }
     return null;
@@ -4007,8 +4029,12 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     if (message.text.isEmpty && message.attaches.isNotEmpty) {
       // Проверяем, есть ли фото или контакты среди вложений
-      final hasPhoto = message.attaches.any((attach) => attach['_type'] == 'PHOTO');
-      final hasContact = message.attaches.any((attach) => attach['_type'] == 'CONTACT');
+      final hasPhoto = message.attaches.any(
+        (attach) => attach['_type'] == 'PHOTO',
+      );
+      final hasContact = message.attaches.any(
+        (attach) => attach['_type'] == 'CONTACT',
+      );
 
       if (hasPhoto) {
         return _buildPhotoAttachmentPreview(message);
@@ -4016,7 +4042,11 @@ class _ChatsScreenState extends State<ChatsScreen>
         return _buildContactAttachmentPreview(message);
       } else {
         final attachmentText = _getAttachmentTypeText(message.attaches);
-        return Text(attachmentText, maxLines: 1, overflow: TextOverflow.ellipsis);
+        return Text(
+          attachmentText,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
       }
     }
 
@@ -4328,8 +4358,3 @@ class _ChatsScreenState extends State<ChatsScreen>
     super.dispose();
   }
 }
-
-
-
-
-

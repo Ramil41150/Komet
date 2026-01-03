@@ -19,7 +19,7 @@ extension ApiServiceAuth on ApiService {
 
   Future<void> requestOtp(String phoneNumber, {bool resend = false}) async {
     if (!_socketConnected || _socket == null) {
-        await connect();
+      await connect();
     }
 
     final payload = {
@@ -43,7 +43,7 @@ extension ApiServiceAuth on ApiService {
     _currentPasswordEmail = null;
 
     if (!_socketConnected || _socket == null) {
-        await connect();
+      await connect();
     }
 
     final payload = {
@@ -60,7 +60,9 @@ extension ApiServiceAuth on ApiService {
     final payload = {'trackId': trackId, 'password': password};
 
     _sendMessage(115, payload);
-    print('Пароль отправлен с payload: ${truncatePayloadObjectForLog(payload)}');
+    print(
+      'Пароль отправлен с payload: ${truncatePayloadObjectForLog(payload)}',
+    );
   }
 
   Map<String, String?> getPasswordAuthData() {
@@ -83,7 +85,9 @@ extension ApiServiceAuth on ApiService {
     final payload = {'password': password, 'hint': hint};
 
     _sendMessage(116, payload);
-    print('Запрос на установку пароля отправлен с payload: ${truncatePayloadObjectForLog(payload)}');
+    print(
+      'Запрос на установку пароля отправлен с payload: ${truncatePayloadObjectForLog(payload)}',
+    );
   }
 
   Future<void> saveToken(
@@ -133,7 +137,8 @@ extension ApiServiceAuth on ApiService {
     }
 
     int attempts = 0;
-    while ((!_chatsFetchedInThisSession || _lastChatsPayload == null) && attempts < 50) {
+    while ((!_chatsFetchedInThisSession || _lastChatsPayload == null) &&
+        attempts < 50) {
       await Future.delayed(const Duration(milliseconds: 100));
       attempts++;
     }
@@ -153,7 +158,7 @@ extension ApiServiceAuth on ApiService {
 
   Future<bool> hasToken() async {
     if (FreshModeHelper.isEnabled) return false;
-    
+
     if (authToken == null) {
       final accountManager = AccountManager();
       await accountManager.initialize();
@@ -163,21 +168,10 @@ extension ApiServiceAuth on ApiService {
       if (currentAccount != null) {
         authToken = currentAccount.token;
         userId = currentAccount.userId;
-        
-        
-        
       } else {
         final prefs = await FreshModeHelper.getSharedPreferences();
         authToken = prefs.getString('authToken');
         userId = prefs.getString('userId');
-        
-        
-        
-        
-        
-        
-        
-        
       }
     }
     return authToken != null;
@@ -230,7 +224,6 @@ extension ApiServiceAuth on ApiService {
 
   Future<void> logout() async {
     try {
-      
       final accountManager = AccountManager();
       await accountManager.initialize();
       final currentAccount = accountManager.currentAccount;
@@ -260,7 +253,6 @@ extension ApiServiceAuth on ApiService {
         await prefs.remove('current_account_id');
       }
 
-      
       authToken = null;
       userId = null;
       _messageCache.clear();
@@ -318,11 +310,10 @@ extension ApiServiceAuth on ApiService {
     }
   }
 
-  
   Future<String> startRegistration(String phoneNumber) async {
     if (!_socketConnected || _socket == null) {
-        await connect();
-        await waitUntilOnline();
+      await connect();
+      await waitUntilOnline();
     }
 
     final payload = {
@@ -331,7 +322,6 @@ extension ApiServiceAuth on ApiService {
       "language": "ru",
     };
 
-    
     final completer = Completer<Map<String, dynamic>>();
     final subscription = messages.listen((message) {
       if (message['opcode'] == 17 && !completer.isCompleted) {

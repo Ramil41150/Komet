@@ -52,11 +52,11 @@ class _OTPScreenState extends State<OTPScreen>
 
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
 
@@ -65,15 +65,17 @@ class _OTPScreenState extends State<OTPScreen>
         _isNavigating = true;
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const PasswordAuthScreen(),
-              ),
-            ).then((_) {
-              if (mounted) {
-                setState(() => _isNavigating = false);
-              }
-            });
+            Navigator.of(context)
+                .push(
+                  MaterialPageRoute(
+                    builder: (context) => const PasswordAuthScreen(),
+                  ),
+                )
+                .then((_) {
+                  if (mounted) {
+                    setState(() => _isNavigating = false);
+                  }
+                });
           }
         });
         return;
@@ -269,10 +271,7 @@ class _OTPScreenState extends State<OTPScreen>
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colors.outline.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: colors.outline.withOpacity(0.2), width: 1),
       ),
     );
 
@@ -366,8 +365,9 @@ class _OTPScreenState extends State<OTPScreen>
                                         decoration: BoxDecoration(
                                           color: colors.primaryContainer
                                               .withOpacity(0.5),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Icon(
                                           Icons.mail_outline,
@@ -421,20 +421,20 @@ class _OTPScreenState extends State<OTPScreen>
                                       focusedPinTheme: defaultPinTheme.copyWith(
                                         decoration: defaultPinTheme.decoration!
                                             .copyWith(
-                                          border: Border.all(
-                                            color: colors.primary,
-                                            width: 2,
-                                          ),
-                                        ),
+                                              border: Border.all(
+                                                color: colors.primary,
+                                                width: 2,
+                                              ),
+                                            ),
                                       ),
                                       errorPinTheme: defaultPinTheme.copyWith(
                                         decoration: defaultPinTheme.decoration!
                                             .copyWith(
-                                          border: Border.all(
-                                            color: colors.error,
-                                            width: 2,
-                                          ),
-                                        ),
+                                              border: Border.all(
+                                                color: colors.error,
+                                                width: 2,
+                                              ),
+                                            ),
                                       ),
                                       onCompleted: (pin) => _verifyCode(pin),
                                     ),

@@ -117,14 +117,18 @@ class _SessionSpoofingScreenState extends State<SessionSpoofingScreen> {
 
   Future<void> _applyGeneratedData() async {
     final filteredPresets = devicePresets
-        .where((p) => p.deviceType != 'WEB' && p.deviceType == _selectedDeviceType)
+        .where(
+          (p) => p.deviceType != 'WEB' && p.deviceType == _selectedDeviceType,
+        )
         .toList();
 
     if (filteredPresets.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Нет доступных пресетов для типа устройства $_selectedDeviceType.'),
+            content: Text(
+              'Нет доступных пресетов для типа устройства $_selectedDeviceType.',
+            ),
           ),
         );
       }
@@ -475,10 +479,7 @@ class _SessionSpoofingScreenState extends State<SessionSpoofingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Тип устройства",
-              style: theme.textTheme.titleMedium,
-            ),
+            Text("Тип устройства", style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
             _buildDescriptionTile(
               icon: Icons.info_outline,
@@ -619,12 +620,12 @@ class _SessionSpoofingScreenState extends State<SessionSpoofingScreen> {
               controller: _deviceIdController,
               decoration: _inputDecoration('ID Устройства', Icons.tag_outlined)
                   .copyWith(
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.autorenew_outlined),
-                  tooltip: 'Сгенерировать новый ID',
-                  onPressed: _generateNewDeviceId,
-                ),
-              ),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.autorenew_outlined),
+                      tooltip: 'Сгенерировать новый ID',
+                      onPressed: _generateNewDeviceId,
+                    ),
+                  ),
             ),
             const SizedBox(height: 16),
             TextField(
