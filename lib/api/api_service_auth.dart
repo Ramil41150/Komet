@@ -213,12 +213,17 @@ extension ApiServiceAuth on ApiService {
       authToken = currentAccount.token;
       userId = currentAccount.userId;
 
+      // Reset session completely for full reconnection
       _messageQueue.clear();
       _lastChatsPayload = null;
       _chatsFetchedInThisSession = false;
       _isSessionOnline = false;
       _isSessionReady = false;
       _handshakeSent = false;
+      _sessionId = DateTime.now().millisecondsSinceEpoch;
+      _lastActionTime = _sessionId;
+      _actionId = 1;
+      _isColdStartSent = false;
 
       // Listen for invalid_token messages during account switch
       bool invalidTokenDetected = false;
@@ -273,12 +278,17 @@ extension ApiServiceAuth on ApiService {
           authToken = previousToken;
           userId = previousUserId;
           
+          // Reset session completely for full reconnection
           _messageQueue.clear();
           _lastChatsPayload = null;
           _chatsFetchedInThisSession = false;
           _isSessionOnline = false;
           _isSessionReady = false;
           _handshakeSent = false;
+          _sessionId = DateTime.now().millisecondsSinceEpoch;
+          _lastActionTime = _sessionId;
+          _actionId = 1;
+          _isColdStartSent = false;
           
           // Try to reconnect to previous account
           try {
