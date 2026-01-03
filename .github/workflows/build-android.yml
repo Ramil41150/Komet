@@ -34,11 +34,11 @@ jobs:
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > android/app/Komet-Keystore.jks
           cat <<EOF > android/key.properties
-storePassword=$KEYSTORE_PASSWORD
-keyPassword=$KEY_PASSWORD
-keyAlias=$KEY_ALIAS
-storeFile=Komet-Keystore.jks
-EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=Komet-Keystore.jks
+          EOF
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
