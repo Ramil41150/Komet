@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:gwid/utils/log_utils.dart';
 
+
 enum LogLevel { debug, info, warning, error, critical }
+
 
 class ConnectionLogger {
   static final ConnectionLogger _instance = ConnectionLogger._internal();
@@ -14,17 +16,22 @@ class ConnectionLogger {
   final StreamController<LogEntry> _logController =
       StreamController<LogEntry>.broadcast();
 
+
   Stream<LogEntry> get logStream => _logController.stream;
+
 
   List<LogEntry> get logs => List.unmodifiable(_logs);
 
+
   static const int maxLogs = 1000;
+
 
   LogLevel _currentLevel = LogLevel.debug;
 
   void setLogLevel(LogLevel level) {
     _currentLevel = level;
   }
+
 
   void log(
     String message, {
@@ -48,24 +55,25 @@ class ConnectionLogger {
 
     _logs.add(entry);
 
+
     if (_logs.length > maxLogs) {
       _logs.removeRange(0, _logs.length - maxLogs);
     }
 
     _logController.add(entry);
 
+
     if (kDebugMode) {
       final emoji = _getEmojiForLevel(level);
       final timestamp = entry.timestamp.toIso8601String().substring(11, 23);
       final categoryStr = category != null ? '[$category]' : '';
-      final dataStr = data != null
-          ? ' | Data: ${truncatePayloadForLog(jsonEncode(data))}'
-          : '';
+      final dataStr = data != null ? ' | Data: ${truncatePayloadForLog(jsonEncode(data))}' : '';
       final errorStr = error != null ? ' | Error: $error' : '';
 
       print('$emoji [$timestamp] $categoryStr $message$dataStr$errorStr');
     }
   }
+
 
   void logConnection(
     String message, {
@@ -80,6 +88,7 @@ class ConnectionLogger {
       error: error,
     );
   }
+
 
   void logError(
     String message, {
@@ -96,6 +105,7 @@ class ConnectionLogger {
       stackTrace: stackTrace,
     );
   }
+
 
   void logMessage(
     String direction,
@@ -115,6 +125,7 @@ class ConnectionLogger {
     );
   }
 
+
   void logReconnect(int attempt, String reason, {Duration? delay}) {
     final data = <String, dynamic>{
       'attempt': attempt,
@@ -128,6 +139,7 @@ class ConnectionLogger {
       data: data,
     );
   }
+
 
   void logPerformance(
     String operation,
@@ -147,6 +159,7 @@ class ConnectionLogger {
     );
   }
 
+
   void logState(String from, String to, {Map<String, dynamic>? metadata}) {
     final data = <String, dynamic>{
       'from': from,
@@ -161,13 +174,16 @@ class ConnectionLogger {
     );
   }
 
+
   List<LogEntry> getLogsByCategory(String category) {
     return _logs.where((log) => log.category == category).toList();
   }
 
+
   List<LogEntry> getLogsByLevel(LogLevel level) {
     return _logs.where((log) => log.level == level).toList();
   }
+
 
   Map<String, int> getLogStats() {
     final stats = <String, int>{};
@@ -177,15 +193,18 @@ class ConnectionLogger {
     return stats;
   }
 
+
   void clearLogs() {
     _logs.clear();
     log('Логи очищены', level: LogLevel.info, category: 'LOGGER');
   }
 
+
   String exportLogs() {
     final logsJson = _logs.map((log) => log.toJson()).toList();
     return jsonEncode(logsJson);
   }
+
 
   void importLogs(String jsonString) {
     try {
@@ -223,6 +242,7 @@ class ConnectionLogger {
     _logController.close();
   }
 }
+
 
 class LogEntry {
   final DateTime timestamp;
@@ -275,9 +295,7 @@ class LogEntry {
   String toString() {
     final emoji = _getEmojiForLevel(level);
     final timestamp = this.timestamp.toIso8601String().substring(11, 23);
-    final dataStr = data != null
-        ? ' | Data: ${truncatePayloadForLog(jsonEncode(data))}'
-        : '';
+    final dataStr = data != null ? ' | Data: ${truncatePayloadForLog(jsonEncode(data))}' : '';
     final errorStr = error != null ? ' | Error: $error' : '';
 
     return '$emoji [$timestamp] [$category] $message$dataStr$errorStr';

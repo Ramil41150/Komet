@@ -1,3 +1,5 @@
+
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -18,9 +20,10 @@ class _QrLoginScreenState extends State<QrLoginScreen> {
   bool _isQrVisible = false;
   String? _error;
 
-  Timer? _qrRefreshTimer;
-  Timer? _countdownTimer;
-  int _countdownSeconds = 60;
+  Timer? _qrRefreshTimer; 
+  Timer?
+  _countdownTimer; 
+  int _countdownSeconds = 60; 
 
   @override
   void initState() {
@@ -31,9 +34,10 @@ class _QrLoginScreenState extends State<QrLoginScreen> {
   @override
   void dispose() {
     _qrRefreshTimer?.cancel();
-    _countdownTimer?.cancel();
+    _countdownTimer?.cancel(); 
     super.dispose();
   }
+
 
   Future<void> _initializeAndStartTimers() async {
     setState(() {
@@ -49,12 +53,14 @@ class _QrLoginScreenState extends State<QrLoginScreen> {
 
       if (mounted) {
         _token = token;
-        _regenerateQrData();
+        _regenerateQrData(); 
+
 
         _qrRefreshTimer?.cancel();
         _qrRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
           _regenerateQrData();
         });
+
 
         _startCountdownTimer();
 
@@ -70,6 +76,7 @@ class _QrLoginScreenState extends State<QrLoginScreen> {
     }
   }
 
+
   void _regenerateQrData() {
     if (_token == null) return;
     final data = {
@@ -80,10 +87,11 @@ class _QrLoginScreenState extends State<QrLoginScreen> {
     if (mounted) {
       setState(() {
         _qrData = jsonEncode(data);
-        _countdownSeconds = 60;
+        _countdownSeconds = 60; 
       });
     }
   }
+
 
   void _startCountdownTimer() {
     _countdownTimer?.cancel();
@@ -93,6 +101,8 @@ class _QrLoginScreenState extends State<QrLoginScreen> {
           if (_countdownSeconds > 0) {
             _countdownSeconds--;
           } else {
+
+
             _countdownSeconds = 60;
           }
         });
@@ -107,6 +117,8 @@ class _QrLoginScreenState extends State<QrLoginScreen> {
       });
     }
   }
+
+
 
   Widget _buildContent() {
     if (_isLoading) {
@@ -190,6 +202,7 @@ class _QrLoginScreenState extends State<QrLoginScreen> {
         ),
       );
     }
+
 
     return Center(
       child: Column(

@@ -135,3 +135,4 @@ class _CustomEmojiDialogState extends State<CustomEmojiDialog> {
     );
   }
 }
+

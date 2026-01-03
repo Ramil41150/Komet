@@ -26,10 +26,12 @@ class Profile {
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) {
+
     Map<String, dynamic> profileData;
     if (json.containsKey('contact')) {
       profileData = json['contact'] as Map<String, dynamic>;
     } else {
+
       profileData = json;
     }
 

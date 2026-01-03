@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:gwid/screens/manage_account_screen.dart';
 import 'package:gwid/models/profile.dart';
@@ -50,6 +51,7 @@ class _ProfileMenuDialogState extends State<ProfileMenuDialog> {
         bottom: false,
         child: Stack(
           children: [
+
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
@@ -140,23 +142,18 @@ class _ProfileMenuDialogState extends State<ProfileMenuDialog> {
                                   ),
                                   onPressed: () {
                                     Navigator.of(context).pop();
-                                    Navigator.of(context)
-                                        .push<Profile?>(
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                ManageAccountScreen(
-                                                  myProfile: myProfile,
-                                                ),
-                                          ),
-                                        )
-                                        .then((updatedProfile) {
-                                          if (updatedProfile != null &&
-                                              widget.onProfileUpdated != null) {
-                                            widget.onProfileUpdated!(
-                                              updatedProfile,
-                                            );
-                                          }
-                                        });
+                                    Navigator.of(context).push<Profile?>(
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            ManageAccountScreen(
+                                              myProfile: myProfile,
+                                            ),
+                                      ),
+                                    ).then((updatedProfile) {
+                                      if (updatedProfile != null && widget.onProfileUpdated != null) {
+                                        widget.onProfileUpdated!(updatedProfile);
+                                      }
+                                    });
                                   },
                                   child: const Text("Управление аккаунтом"),
                                 ),
@@ -219,9 +216,7 @@ class _ProfileMenuDialogState extends State<ProfileMenuDialog> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('Ошибка при выходе: $e'),
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.error,
+                                  backgroundColor: Theme.of(context).colorScheme.error,
                                 ),
                               );
                             }
@@ -235,6 +230,7 @@ class _ProfileMenuDialogState extends State<ProfileMenuDialog> {
               ),
             ),
 
+
             if (_isAvatarExpanded)
               Positioned.fill(
                 child: GestureDetector(
@@ -243,6 +239,7 @@ class _ProfileMenuDialogState extends State<ProfileMenuDialog> {
                   child: const SizedBox.expand(),
                 ),
               ),
+
 
             AnimatedAlign(
               alignment: _isAvatarExpanded

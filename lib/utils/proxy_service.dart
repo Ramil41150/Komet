@@ -89,6 +89,7 @@ class ProxyService {
         "Внимание: Полная проверка SOCKS5 требует дополнительной реализации",
       );
 
+      
       await proxySocket.close();
       print("SOCKS5 прокси работает корректно");
     } on SocketException catch (e) {

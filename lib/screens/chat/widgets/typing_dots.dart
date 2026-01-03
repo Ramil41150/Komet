@@ -60,3 +60,4 @@ class _TypingDotsState extends State<TypingDots>
     );
   }
 }
+

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:gwid/screens/cache_management_screen.dart';
+import 'package:gwid/screens/cache_management_screen.dart'; 
 import 'package:provider/provider.dart';
 import 'package:gwid/utils/theme_provider.dart';
 import 'package:gwid/api/api_service.dart';
@@ -232,6 +232,7 @@ class DebugScreen extends StatelessWidget {
 
   Future<void> _performFullDataClear(BuildContext context) async {
     try {
+
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -247,11 +248,14 @@ class DebugScreen extends StatelessWidget {
         ),
       );
 
+
       await ApiService.instance.clearAllData();
+
 
       if (context.mounted) {
         Navigator.of(context).pop();
       }
+
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -263,15 +267,19 @@ class DebugScreen extends StatelessWidget {
         );
       }
 
+
       await Future.delayed(const Duration(seconds: 2));
+
 
       if (context.mounted) {
         SystemNavigator.pop();
       }
     } catch (e) {
+
       if (context.mounted) {
         Navigator.of(context).pop();
       }
+
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -426,9 +434,11 @@ class _SessionsScreenState extends State<SessionsScreen> {
   void initState() {
     super.initState();
     _listenToApi();
+
   }
 
   void _loadSessions() {
+
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         setState(() {
@@ -466,6 +476,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
     );
 
     if (confirmed == true) {
+
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() {
@@ -475,6 +486,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
       });
 
       ApiService.instance.terminateAllSessions();
+
 
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
@@ -491,6 +503,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
   void _listenToApi() {
     _apiSubscription = ApiService.instance.messages.listen((message) {
       if (message['opcode'] == 96 && mounted) {
+
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             setState(() {
@@ -532,6 +545,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
       relativeTime = 'Только что';
     }
 
+
     final exactTime =
         '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
@@ -541,6 +555,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+
 
     if (_isInitialLoad && _sessions.isEmpty) {
       _isInitialLoad = false;
@@ -579,6 +594,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
             )
           : Column(
               children: [
+
                 if (_sessions.any((s) => !s.current))
                   Container(
                     width: double.infinity,

@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class DownloadPathHelper {
   static const String _downloadPathKey = 'custom_download_path';
 
+  
+  
   static Future<io.Directory?> getDownloadDirectory() async {
     final prefs = await SharedPreferences.getInstance();
     final customPath = prefs.getString(_downloadPathKey);
@@ -16,13 +18,16 @@ class DownloadPathHelper {
       }
     }
 
+    
     return _getDefaultDownloadDirectory();
   }
 
+  
   static Future<io.Directory?> _getDefaultDownloadDirectory() async {
     if (io.Platform.isAndroid) {
       final directory = await getExternalStorageDirectory();
       if (directory != null) {
+        
         var downloadDir = io.Directory(
           '${directory.path.split('Android')[0]}Download',
         );
@@ -53,9 +58,11 @@ class DownloadPathHelper {
       }
     }
 
+    
     return await getApplicationDocumentsDirectory();
   }
 
+  
   static Future<void> setDownloadDirectory(String? path) async {
     final prefs = await SharedPreferences.getInstance();
     if (path != null && path.isNotEmpty) {
@@ -65,11 +72,13 @@ class DownloadPathHelper {
     }
   }
 
+  
   static Future<String?> getSavedDownloadPath() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_downloadPathKey);
   }
 
+  
   static Future<String> getDisplayPath() async {
     final savedPath = await getSavedDownloadPath();
     if (savedPath != null && savedPath.isNotEmpty) {
@@ -80,3 +89,4 @@ class DownloadPathHelper {
     return defaultDir?.path ?? 'Не указано';
   }
 }
+

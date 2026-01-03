@@ -32,8 +32,7 @@ class ChatsAppBarBuilder {
           end: Alignment.bottomRight,
         ),
       );
-    } else if (themeProvider.appBarBackgroundType ==
-            AppBarBackgroundType.image &&
+    } else if (themeProvider.appBarBackgroundType == AppBarBackgroundType.image &&
         themeProvider.appBarImagePath != null &&
         themeProvider.appBarImagePath!.isNotEmpty) {
       appBarDecoration = BoxDecoration(
@@ -70,13 +69,12 @@ class ChatsAppBarBuilder {
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
-                    transitionBuilder:
-                        (Widget child, Animation<double> animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          );
-                        },
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: child,
+                      );
+                    },
                     layoutBuilder: (currentChild, previousChildren) {
                       return Stack(
                         alignment: Alignment.centerLeft,
@@ -139,3 +137,4 @@ class ChatsAppBarBuilder {
     );
   }
 }
+

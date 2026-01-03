@@ -1,6 +1,23 @@
 import 'dart:math';
 
-enum ErrorType { network, server, authentication, protocol, unknown }
+
+enum ErrorType {
+
+  network,
+
+
+  server,
+
+
+  authentication,
+
+
+  protocol,
+
+
+  unknown,
+}
+
 
 class ErrorInfo {
   final ErrorType type;
@@ -17,12 +34,14 @@ class ErrorInfo {
     this.metadata,
   });
 
+
   static ErrorType getErrorTypeFromHttpStatus(int statusCode) {
     if (statusCode >= 500) return ErrorType.server;
     if (statusCode == 401 || statusCode == 403) return ErrorType.authentication;
     if (statusCode >= 400) return ErrorType.protocol;
     return ErrorType.network;
   }
+
 
   static ErrorType getErrorTypeFromMessage(String message) {
     final lowerMessage = message.toLowerCase();
@@ -46,6 +65,7 @@ class ErrorInfo {
     return ErrorType.unknown;
   }
 }
+
 
 class RetryStrategy {
   final int maxAttempts;
@@ -97,14 +117,17 @@ class RetryStrategy {
     ),
   };
 
+
   Duration calculateDelay(int attempt, ErrorType errorType) {
     final config = errorConfigs[errorType] ?? errorConfigs[ErrorType.unknown]!;
+
 
     final exponentialDelay =
         config.baseDelay * pow(config.backoffMultiplier, attempt - 1);
     final cappedDelay = exponentialDelay > config.maxDelay
         ? config.maxDelay
         : exponentialDelay;
+
 
     final jitter =
         cappedDelay.inMilliseconds *
@@ -117,15 +140,18 @@ class RetryStrategy {
     return finalDelay;
   }
 
+
   bool shouldRetry(int attempt, ErrorType errorType) {
     final config = errorConfigs[errorType] ?? errorConfigs[ErrorType.unknown]!;
     return attempt <= config.maxAttempts;
   }
 
+
   RetryConfig getConfigForError(ErrorType errorType) {
     return errorConfigs[errorType] ?? errorConfigs[ErrorType.unknown]!;
   }
 }
+
 
 class RetryConfig {
   final int maxAttempts;
@@ -141,12 +167,14 @@ class RetryConfig {
   });
 }
 
+
 class RetryManager {
   final RetryStrategy _strategy;
   final Map<String, RetrySession> _sessions = {};
 
   RetryManager({RetryStrategy? strategy})
     : _strategy = strategy ?? RetryStrategy();
+
 
   RetrySession startSession(String sessionId, ErrorType initialErrorType) {
     final session = RetrySession(
@@ -158,17 +186,21 @@ class RetryManager {
     return session;
   }
 
+
   RetrySession? getSession(String sessionId) {
     return _sessions[sessionId];
   }
+
 
   void endSession(String sessionId) {
     _sessions.remove(sessionId);
   }
 
+
   void clearSessions() {
     _sessions.clear();
   }
+
 
   Map<String, dynamic> getStatistics() {
     final totalSessions = _sessions.length;
@@ -190,6 +222,7 @@ class RetryManager {
   }
 }
 
+
 class RetrySession {
   final String id;
   final RetryStrategy strategy;
@@ -202,6 +235,7 @@ class RetrySession {
     required this.strategy,
     required this.initialErrorType,
   }) : startTime = DateTime.now();
+
 
   void addAttempt(
     ErrorType errorType, {
@@ -218,30 +252,40 @@ class RetrySession {
     attempts.add(attempt);
   }
 
+
   Duration getNextDelay() {
     return strategy.calculateDelay(attempts.length + 1, currentErrorType);
   }
 
+
   bool canRetry() {
     return strategy.shouldRetry(attempts.length + 1, currentErrorType);
   }
+
 
   ErrorType get currentErrorType {
     if (attempts.isEmpty) return initialErrorType;
     return attempts.last.errorType;
   }
 
+
   int get attemptCount => attempts.length;
+
 
   bool get isActive => !isSuccessful && !isFailed && canRetry();
 
+
   bool get isSuccessful => attempts.isNotEmpty && attempts.last.isSuccessful;
+
 
   bool get isFailed => !canRetry() && !isSuccessful;
 
+
   Duration get duration => DateTime.now().difference(startTime);
 
+
   RetryAttempt? get lastAttempt => attempts.isNotEmpty ? attempts.last : null;
+
 
   Map<String, dynamic> getStatistics() {
     final errorTypes = attempts.map((a) => a.errorType.name).toList();
@@ -263,6 +307,7 @@ class RetrySession {
     };
   }
 }
+
 
 class RetryAttempt {
   final int number;

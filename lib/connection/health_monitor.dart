@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+
 class HealthMetrics {
   final int latency;
   final int packetLoss;
@@ -20,8 +21,10 @@ class HealthMetrics {
     this.serverUrl,
   });
 
+
   int get healthScore {
     int score = 100;
+
 
     if (latency > 1000) {
       score -= 30;
@@ -30,6 +33,7 @@ class HealthMetrics {
     else if (latency > 200)
       score -= 10;
 
+
     if (packetLoss > 10) {
       score -= 40;
     } else if (packetLoss > 5)
@@ -37,12 +41,14 @@ class HealthMetrics {
     else if (packetLoss > 1)
       score -= 10;
 
+
     if (reconnects > 10) {
       score -= 30;
     } else if (reconnects > 5)
       score -= 20;
     else if (reconnects > 2)
       score -= 10;
+
 
     if (errors > 20) {
       score -= 25;
@@ -53,6 +59,7 @@ class HealthMetrics {
 
     return max(0, score);
   }
+
 
   ConnectionQuality get quality {
     final score = healthScore;
@@ -78,7 +85,9 @@ class HealthMetrics {
   }
 }
 
+
 enum ConnectionQuality { excellent, good, fair, poor, critical }
+
 
 class HealthMonitor {
   static final HealthMonitor _instance = HealthMonitor._internal();
@@ -99,23 +108,29 @@ class HealthMonitor {
   DateTime? _connectionStartTime;
   String? _currentServerUrl;
 
+
   Stream<HealthMetrics> get metricsStream => _metricsController.stream;
+
 
   HealthMetrics? get currentMetrics =>
       _metricsHistory.isNotEmpty ? _metricsHistory.last : null;
 
+
   List<HealthMetrics> get metricsHistory => List.unmodifiable(_metricsHistory);
+
 
   void startMonitoring({String? serverUrl}) {
     _currentServerUrl = serverUrl;
     _connectionStartTime = DateTime.now();
     _resetCounters();
 
+
     _pingTimer?.cancel();
     _pingTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) => _sendPing(),
     );
+
 
     _healthCheckTimer?.cancel();
     _healthCheckTimer = Timer.periodic(
@@ -126,21 +141,25 @@ class HealthMonitor {
     _logHealthEvent('Мониторинг здоровья начат', {'server_url': serverUrl});
   }
 
+
   void stopMonitoring() {
     _pingTimer?.cancel();
     _healthCheckTimer?.cancel();
     _logHealthEvent('Мониторинг здоровья остановлен');
   }
 
+
   void onPongReceived() {
     _pongCount++;
     _logHealthEvent('Pong получен', {'pong_count': _pongCount});
   }
 
+
   void onReconnect() {
     _reconnectCount++;
     _logHealthEvent('Переподключение', {'reconnect_count': _reconnectCount});
   }
+
 
   void onError(String error) {
     _errorCount++;
@@ -150,10 +169,12 @@ class HealthMonitor {
     });
   }
 
+
   void _sendPing() {
     _pingCount++;
     _logHealthEvent('Ping отправлен', {'ping_count': _pingCount});
   }
+
 
   void _updateHealthMetrics() {
     final now = DateTime.now();
@@ -176,6 +197,7 @@ class HealthMonitor {
 
     _metricsHistory.add(metrics);
 
+
     if (_metricsHistory.length > 100) {
       _metricsHistory.removeAt(0);
     }
@@ -191,14 +213,18 @@ class HealthMonitor {
     });
   }
 
+
   int _calculateLatency() {
+
     if (_pingCount == 0) return 0;
+
 
     final baseLatency = 50 + Random().nextInt(100);
     final packetLossPenalty = _calculatePacketLoss() * 10;
 
     return baseLatency + packetLossPenalty;
   }
+
 
   int _calculatePacketLoss() {
     if (_pingCount == 0) return 0;
@@ -209,6 +235,7 @@ class HealthMonitor {
 
     return ((lostPackets / expectedPongs) * 100).round();
   }
+
 
   HealthMetrics? getAverageMetrics({Duration? period}) {
     if (_metricsHistory.isEmpty) return null;
@@ -246,6 +273,7 @@ class HealthMonitor {
     );
   }
 
+
   Map<String, dynamic> getStatistics() {
     if (_metricsHistory.isEmpty) {
       return {
@@ -278,12 +306,14 @@ class HealthMonitor {
     };
   }
 
+
   void _resetCounters() {
     _pingCount = 0;
     _pongCount = 0;
     _reconnectCount = 0;
     _errorCount = 0;
   }
+
 
   void clearHistory() {
     _metricsHistory.clear();

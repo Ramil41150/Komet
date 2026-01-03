@@ -151,7 +151,9 @@ class _NotificationSettingsScreenState
   Future<void> _loadCurrentSettings() async {
     setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(
+      const Duration(milliseconds: 500),
+    ); 
     setState(() => _isLoading = false);
   }
 

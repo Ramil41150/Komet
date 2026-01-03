@@ -13,6 +13,7 @@ class BypassScreen extends StatefulWidget {
 }
 
 class _BypassScreenState extends State<BypassScreen> {
+  
   int _selectedTab = 0;
   bool _kometAutoCompleteEnabled = false;
   bool _specialMessagesEnabled = true;
@@ -64,6 +65,7 @@ class _BypassScreenState extends State<BypassScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          
           LayoutBuilder(
             builder: (context, constraints) {
               final isNarrow = constraints.maxWidth < 480;
@@ -215,6 +217,7 @@ class _BypassScreenState extends State<BypassScreen> {
               ),
             ),
           ] else ...[
+            
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -286,7 +289,7 @@ class _BypassScreenState extends State<BypassScreen> {
                               "привет",
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFFFF0000),
+                                color: Color(0xFFFF0000), 
                               ),
                             ),
                             Text(

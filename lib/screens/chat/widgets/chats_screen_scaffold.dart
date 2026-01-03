@@ -67,3 +67,4 @@ class ChatsScreenScaffold extends StatelessWidget {
     );
   }
 }
+

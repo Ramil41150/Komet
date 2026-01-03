@@ -108,3 +108,4 @@ class _ChatsListPageState extends State<ChatsListPage>
     );
   }
 }
+

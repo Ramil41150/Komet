@@ -24,6 +24,7 @@ class _PasswordAuthScreenState extends State<PasswordAuthScreen> {
   void initState() {
     super.initState();
 
+
     _apiSubscription = ApiService.instance.messages.listen((message) {
       if (message['type'] == 'password_required' && mounted) {
         setState(() {
@@ -31,6 +32,7 @@ class _PasswordAuthScreenState extends State<PasswordAuthScreen> {
           _email = message['email'];
         });
       }
+
 
       if (message['opcode'] == 115 && message['cmd'] == 1 && mounted) {
         final payload = message['payload'];
@@ -126,6 +128,7 @@ class _PasswordAuthScreenState extends State<PasswordAuthScreen> {
         }
       }
 
+
       if (message['opcode'] == 115 && message['cmd'] == 3 && mounted) {
         setState(() {
           _isLoading = false;
@@ -155,6 +158,7 @@ class _PasswordAuthScreenState extends State<PasswordAuthScreen> {
         );
       }
     });
+
 
     final authData = ApiService.instance.getPasswordAuthData();
     _hint = authData['hint'];
@@ -238,6 +242,7 @@ class _PasswordAuthScreenState extends State<PasswordAuthScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+
                   if (_email != null)
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -283,6 +288,7 @@ class _PasswordAuthScreenState extends State<PasswordAuthScreen> {
 
                   const SizedBox(height: 30),
 
+
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
@@ -300,6 +306,7 @@ class _PasswordAuthScreenState extends State<PasswordAuthScreen> {
                   ),
 
                   const SizedBox(height: 24),
+
 
                   SizedBox(
                     width: double.infinity,
@@ -329,6 +336,7 @@ class _PasswordAuthScreenState extends State<PasswordAuthScreen> {
               ),
             ),
           ),
+
 
           if (_isLoading)
             Container(

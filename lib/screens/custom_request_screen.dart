@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gwid/api/api_service.dart';
 
+
 class RequestHistoryItem {
   final String request;
   final String response;
@@ -37,17 +38,18 @@ class _CustomRequestScreenState extends State<CustomRequestScreen> {
     const encoder = JsonEncoder.withIndent('  ');
     final formattedResponse = encoder.convert(message);
 
-    if (!mounted) return;
+    if (!mounted) return; 
 
     setState(() {
       _response = formattedResponse;
       _isLoading = false;
       _error = null;
 
+
       _history.insert(
         0,
         RequestHistoryItem(
-          request: originalRequest,
+          request: originalRequest, 
           response: formattedResponse,
           timestamp: DateTime.now(),
         ),
@@ -87,8 +89,9 @@ class _CustomRequestScreenState extends State<CustomRequestScreen> {
         jsonEncode(requestJson),
       );
 
+
       timeoutTimer = Timer(const Duration(seconds: 15), () {
-        subscription?.cancel();
+        subscription?.cancel(); 
         if (mounted && _isLoading) {
           setState(() {
             _error = 'Ошибка: Превышено время ожидания ответа (15с).';
@@ -97,11 +100,13 @@ class _CustomRequestScreenState extends State<CustomRequestScreen> {
         }
       });
 
+
       subscription = ApiService.instance.messages.listen((message) {
+
         if (message['seq'] == sentSeq) {
-          timeoutTimer?.cancel();
-          subscription?.cancel();
-          _handleResponse(message, requestText);
+          timeoutTimer?.cancel(); 
+          subscription?.cancel(); 
+          _handleResponse(message, requestText); 
         }
       });
     } catch (e) {
@@ -117,6 +122,7 @@ class _CustomRequestScreenState extends State<CustomRequestScreen> {
   }
 
   void _useHistoryItem(RequestHistoryItem item) {
+
     _requestController.text = item.request;
     setState(() {
       _response = item.response;
@@ -128,6 +134,7 @@ class _CustomRequestScreenState extends State<CustomRequestScreen> {
       curve: Curves.easeInOut,
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

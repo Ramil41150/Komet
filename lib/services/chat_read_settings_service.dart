@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatReadSettings {
-  final bool readOnAction;
-  final bool readOnEnter;
-  final bool disabled;
+  final bool readOnAction; 
+  final bool readOnEnter; 
+  final bool disabled; 
 
   ChatReadSettings({
     this.readOnAction = true,
@@ -57,6 +57,8 @@ class ChatReadSettingsService {
     }
   }
 
+  
+  
   Future<ChatReadSettings?> getSettings(int chatId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -75,6 +77,7 @@ class ChatReadSettingsService {
     }
   }
 
+  
   Future<void> saveSettings(int chatId, ChatReadSettings settings) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -86,6 +89,7 @@ class ChatReadSettingsService {
     }
   }
 
+  
   Future<void> resetSettings(int chatId) async {
     try {
       final prefs = await SharedPreferences.getInstance();

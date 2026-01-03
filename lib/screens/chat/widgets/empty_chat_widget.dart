@@ -96,3 +96,4 @@ class EmptyChatWidget extends StatelessWidget {
     return Icon(Icons.emoji_emotions, size: width, color: Colors.grey);
   }
 }
+

@@ -18,3 +18,4 @@ class PresenceDot extends StatelessWidget {
     );
   }
 }
+

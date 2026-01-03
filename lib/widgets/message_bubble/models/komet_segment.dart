@@ -16,3 +16,4 @@ class KometSegment {
 
   KometSegment(this.text, this.type, {this.color});
 }
+

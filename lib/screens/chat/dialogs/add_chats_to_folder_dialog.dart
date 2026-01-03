@@ -20,7 +20,8 @@ class AddChatsToFolderDialog extends StatefulWidget {
   });
 
   @override
-  State<AddChatsToFolderDialog> createState() => _AddChatsToFolderDialogState();
+  State<AddChatsToFolderDialog> createState() =>
+      _AddChatsToFolderDialogState();
 }
 
 class _AddChatsToFolderDialogState extends State<AddChatsToFolderDialog> {
@@ -284,3 +285,4 @@ class _AddChatsToFolderDialogState extends State<AddChatsToFolderDialog> {
     );
   }
 }
+

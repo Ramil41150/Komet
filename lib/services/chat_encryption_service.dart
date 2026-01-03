@@ -64,24 +64,26 @@ class ChatEncryptionService {
 
     if (prefixLength == 0) return false;
     if (text.length <= prefixLength) return false;
-
+    
     final payloadPart = text.substring(prefixLength);
     if (payloadPart.length < 20) return false;
-
+    
     final hasRussianLetters = RegExp(r'[А-Яа-я]').hasMatch(payloadPart);
-    final hasSpecialWords =
-        payloadPart.contains('привет') ||
-        payloadPart.contains('незнаю') ||
-        payloadPart.contains('хм');
-
+    final hasSpecialWords = payloadPart.contains('привет') || 
+                           payloadPart.contains('незнаю') || 
+                           payloadPart.contains('хм');
+    
     if (!hasRussianLetters && !hasSpecialWords) return false;
-
+    
     final validChars = RegExp(r'^[А-Яа-яA-Za-z0-9приветнезнаюхм_-]+$');
     if (!validChars.hasMatch(payloadPart)) return false;
-
+    
     return true;
   }
 
+  
+  
+  
   static Future<ChatEncryptionConfig?> getConfigForChat(int chatId) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -90,9 +92,12 @@ class ChatEncryptionService {
       try {
         final data = jsonDecode(configJson) as Map<String, dynamic>;
         return ChatEncryptionConfig.fromJson(data);
-      } catch (_) {}
+      } catch (_) {
+        
+      }
     }
 
+    
     final legacyPassword = prefs.getString('$_legacyPasswordKeyPrefix$chatId');
     if (legacyPassword != null && legacyPassword.isNotEmpty) {
       final legacyConfig = ChatEncryptionConfig(
@@ -117,6 +122,7 @@ class ChatEncryptionService {
     );
   }
 
+  
   static Future<void> setPasswordForChat(int chatId, String password) async {
     final current = await getConfigForChat(chatId);
     final updated = ChatEncryptionConfig(
@@ -126,6 +132,7 @@ class ChatEncryptionService {
     await _saveConfig(chatId, updated);
   }
 
+  
   static Future<void> setSendEncryptedForChat(int chatId, bool enabled) async {
     final current = await getConfigForChat(chatId);
     final updated = ChatEncryptionConfig(
@@ -135,16 +142,21 @@ class ChatEncryptionService {
     await _saveConfig(chatId, updated);
   }
 
+  
   static Future<String?> getPasswordForChat(int chatId) async {
     final cfg = await getConfigForChat(chatId);
     return cfg?.password;
   }
 
+  
   static Future<bool> isSendEncryptedEnabled(int chatId) async {
     final cfg = await getConfigForChat(chatId);
     return cfg?.sendEncrypted ?? true;
   }
 
+  
+  
+  
   static String encryptWithPassword(String password, String plaintext) {
     print('Шифрование: начинаем, plaintext: $plaintext');
     final salt = _randomBytes(8);
@@ -177,6 +189,8 @@ class ChatEncryptionService {
     return result;
   }
 
+  
+  
   static String? decryptWithPassword(String password, String text) {
     if (text.isEmpty) return null;
 
