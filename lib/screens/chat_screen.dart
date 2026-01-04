@@ -3789,7 +3789,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                         );
                                       }
 
-                                      if (shouldAnimateNew) {
+                                      if (shouldAnimateNew &&
+                                          context.read<ThemeProvider>().messageTransition != TransitionOption.systemDefault) {
                                         return _NewMessageAnimation(
                                           key: ValueKey('anim_$stableKey'),
                                           child: finalMessageWidget,
