@@ -72,9 +72,11 @@ class MessageQueueService {
   List<QueueItem> get queue => List.unmodifiable(_queue);
 
   static const String _queueKey = 'message_queue';
+  static const String _processedIdsKey = 'processed_message_ids';
 
   Future<void> initialize() async {
     await _loadQueue();
+    await _loadProcessedIds();
   }
 
   Future<void> _loadQueue() async {
@@ -102,6 +104,26 @@ class MessageQueueService {
     }
   }
 
+  Future<void> _loadProcessedIds() async {
+    if (FreshModeHelper.shouldSkipLoad()) {
+      _processedMessageIds.clear();
+      return;
+    }
+
+    try {
+      final prefs = await FreshModeHelper.getSharedPreferences();
+      final processedIdsJson = prefs.getString(_processedIdsKey);
+      if (processedIdsJson != null) {
+        final List<dynamic> ids = jsonDecode(processedIdsJson);
+        _processedMessageIds.clear();
+        _processedMessageIds.addAll(ids.cast<String>());
+        print('Загружено ${_processedMessageIds.length} обработанных ID');
+      }
+    } catch (e) {
+      print('Ошибка загрузки обработанных ID: $e');
+    }
+  }
+
   Future<void> _saveQueue() async {
     if (FreshModeHelper.shouldSkipSave()) return;
 
@@ -114,6 +136,18 @@ class MessageQueueService {
       await prefs.setString(_queueKey, queueJson);
     } catch (e) {
       print('Ошибка сохранения очереди: $e');
+    }
+  }
+
+  Future<void> _saveProcessedIds() async {
+    if (FreshModeHelper.shouldSkipSave()) return;
+
+    try {
+      final prefs = await FreshModeHelper.getSharedPreferences();
+      final processedIdsJson = jsonEncode(_processedMessageIds.toList());
+      await prefs.setString(_processedIdsKey, processedIdsJson);
+    } catch (e) {
+      print('Ошибка сохранения обработанных ID: $e');
     }
   }
 
@@ -193,11 +227,14 @@ class MessageQueueService {
       final toRemove = _processedMessageIds.take(_cleanupBatchSize).toList();
       _processedMessageIds.removeAll(toRemove);
     }
+    // Сохраняем обновленный список в SharedPreferences
+    _saveProcessedIds();
   }
 
   /// Очищает список обработанных сообщений
   void clearProcessedMessages() {
     _processedMessageIds.clear();
+    _saveProcessedIds();
   }
 
   void dispose() {
