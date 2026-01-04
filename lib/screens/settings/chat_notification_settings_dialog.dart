@@ -24,7 +24,7 @@ class ChatNotificationSettingsDialog extends StatefulWidget {
 class _ChatNotificationSettingsDialogState
     extends State<ChatNotificationSettingsDialog> {
   final _settingsService = NotificationSettingsService();
-  
+
   bool _isLoading = true;
   bool _hasException = false;
   bool _notificationsEnabled = true;
@@ -126,7 +126,9 @@ class _ChatNotificationSettingsDialogState
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Исключение удалено, используются настройки по умолчанию'),
+          content: Text(
+            'Исключение удалено, используются настройки по умолчанию',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -140,23 +142,26 @@ class _ChatNotificationSettingsDialogState
         return SimpleDialog(
           title: const Text('Вибрация'),
           children: [
-            RadioListTile<VibrationMode>(
-              title: const Text('Без вибрации'),
-              value: VibrationMode.none,
+            RadioGroup<VibrationMode>(
               groupValue: _vibrationMode,
               onChanged: (v) => Navigator.of(context).pop(v),
-            ),
-            RadioListTile<VibrationMode>(
-              title: const Text('Короткая'),
-              value: VibrationMode.short,
-              groupValue: _vibrationMode,
-              onChanged: (v) => Navigator.of(context).pop(v),
-            ),
-            RadioListTile<VibrationMode>(
-              title: const Text('Длинная'),
-              value: VibrationMode.long,
-              groupValue: _vibrationMode,
-              onChanged: (v) => Navigator.of(context).pop(v),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<VibrationMode>(
+                    title: const Text('Без вибрации'),
+                    value: VibrationMode.none,
+                  ),
+                  RadioListTile<VibrationMode>(
+                    title: const Text('Короткая'),
+                    value: VibrationMode.short,
+                  ),
+                  RadioListTile<VibrationMode>(
+                    title: const Text('Длинная'),
+                    value: VibrationMode.long,
+                  ),
+                ],
+              ),
             ),
           ],
         );

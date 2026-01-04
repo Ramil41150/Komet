@@ -460,11 +460,11 @@ class CustomThemePreset {
       'id': id,
       'name': name,
       'appTheme': appTheme.index,
-      'accentColor': accentColor.value,
+      'accentColor': accentColor.toARGB32(),
       'useCustomChatWallpaper': useCustomChatWallpaper,
       'chatWallpaperType': chatWallpaperType.index,
-      'chatWallpaperColor1': chatWallpaperColor1.value,
-      'chatWallpaperColor2': chatWallpaperColor2.value,
+      'chatWallpaperColor1': chatWallpaperColor1.toARGB32(),
+      'chatWallpaperColor2': chatWallpaperColor2.toARGB32(),
       'chatWallpaperImagePath': chatWallpaperImagePath,
       'chatWallpaperVideoPath': chatWallpaperVideoPath,
       'chatWallpaperBlur': chatWallpaperBlur,
@@ -490,10 +490,10 @@ class CustomThemePreset {
       'messageShadowIntensity': messageShadowIntensity,
       'messageBorderRadius': messageBorderRadius,
       'messageFontSize': messageFontSize,
-      'myBubbleColorLight': myBubbleColorLight?.value,
-      'theirBubbleColorLight': theirBubbleColorLight?.value,
-      'myBubbleColorDark': myBubbleColorDark?.value,
-      'theirBubbleColorDark': theirBubbleColorDark?.value,
+      'myBubbleColorLight': myBubbleColorLight?.toARGB32(),
+      'theirBubbleColorLight': theirBubbleColorLight?.toARGB32(),
+      'myBubbleColorDark': myBubbleColorDark?.toARGB32(),
+      'theirBubbleColorDark': theirBubbleColorDark?.toARGB32(),
       'messageBubbleType': messageBubbleType.index,
       'sendOnEnter': sendOnEnter,
       'chatTransition': chatTransition.index,
@@ -507,7 +507,7 @@ class CustomThemePreset {
       'ultraOptimizeChats': ultraOptimizeChats,
       'useDesktopLayout': useDesktopLayout,
       'useAutoReplyColor': useAutoReplyColor,
-      'customReplyColor': customReplyColor?.value,
+      'customReplyColor': customReplyColor?.toARGB32(),
       'useGradientForChatsList': useGradientForChatsList,
       'chatsListBackgroundType': chatsListBackgroundType.index,
       'chatsListImagePath': chatsListImagePath,
@@ -521,16 +521,18 @@ class CustomThemePreset {
       'useGradientForFolderTabs': useGradientForFolderTabs,
       'folderTabsBackgroundType': folderTabsBackgroundType.index,
       'folderTabsImagePath': folderTabsImagePath,
-      'chatsListGradientColor1': chatsListGradientColor1.value,
-      'chatsListGradientColor2': chatsListGradientColor2.value,
-      'drawerGradientColor1': drawerGradientColor1.value,
-      'drawerGradientColor2': drawerGradientColor2.value,
-      'addAccountButtonGradientColor1': addAccountButtonGradientColor1.value,
-      'addAccountButtonGradientColor2': addAccountButtonGradientColor2.value,
-      'appBarGradientColor1': appBarGradientColor1.value,
-      'appBarGradientColor2': appBarGradientColor2.value,
-      'folderTabsGradientColor1': folderTabsGradientColor1.value,
-      'folderTabsGradientColor2': folderTabsGradientColor2.value,
+      'chatsListGradientColor1': chatsListGradientColor1.toARGB32(),
+      'chatsListGradientColor2': chatsListGradientColor2.toARGB32(),
+      'drawerGradientColor1': drawerGradientColor1.toARGB32(),
+      'drawerGradientColor2': drawerGradientColor2.toARGB32(),
+      'addAccountButtonGradientColor1': addAccountButtonGradientColor1
+          .toARGB32(),
+      'addAccountButtonGradientColor2': addAccountButtonGradientColor2
+          .toARGB32(),
+      'appBarGradientColor1': appBarGradientColor1.toARGB32(),
+      'appBarGradientColor2': appBarGradientColor2.toARGB32(),
+      'folderTabsGradientColor1': folderTabsGradientColor1.toARGB32(),
+      'folderTabsGradientColor2': folderTabsGradientColor2.toARGB32(),
     };
   }
 
@@ -545,15 +547,17 @@ class CustomThemePreset {
       id: json['id'] as String,
       name: json['name'] as String,
       appTheme: parsedTheme,
-      accentColor: Color(json['accentColor'] as int? ?? Colors.blue.value),
+      accentColor: Color(json['accentColor'] as int? ?? Colors.blue.toARGB32()),
       useCustomChatWallpaper: json['useCustomChatWallpaper'] as bool? ?? false,
       chatWallpaperType:
           ChatWallpaperType.values[json['chatWallpaperType'] as int? ?? 0],
       chatWallpaperColor1: Color(
-        json['chatWallpaperColor1'] as int? ?? const Color(0xFF101010).value,
+        json['chatWallpaperColor1'] as int? ??
+            const Color(0xFF101010).toARGB32(),
       ),
       chatWallpaperColor2: Color(
-        json['chatWallpaperColor2'] as int? ?? const Color(0xFF202020).value,
+        json['chatWallpaperColor2'] as int? ??
+            const Color(0xFF202020).toARGB32(),
       ),
       chatWallpaperImagePath: json['chatWallpaperImagePath'] as String?,
       chatWallpaperVideoPath: json['chatWallpaperVideoPath'] as String?,
@@ -658,39 +662,43 @@ class CustomThemePreset {
       folderTabsImagePath: json['folderTabsImagePath'] as String?,
       chatsListGradientColor1: Color(
         json['chatsListGradientColor1'] as int? ??
-            const Color(0xFF1E1E1E).value,
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       chatsListGradientColor2: Color(
         json['chatsListGradientColor2'] as int? ??
-            const Color(0xFF2D2D2D).value,
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
       drawerGradientColor1: Color(
-        json['drawerGradientColor1'] as int? ?? const Color(0xFF1E1E1E).value,
+        json['drawerGradientColor1'] as int? ??
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       drawerGradientColor2: Color(
-        json['drawerGradientColor2'] as int? ?? const Color(0xFF2D2D2D).value,
+        json['drawerGradientColor2'] as int? ??
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
       addAccountButtonGradientColor1: Color(
         json['addAccountButtonGradientColor1'] as int? ??
-            const Color(0xFF1E1E1E).value,
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       addAccountButtonGradientColor2: Color(
         json['addAccountButtonGradientColor2'] as int? ??
-            const Color(0xFF2D2D2D).value,
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
       appBarGradientColor1: Color(
-        json['appBarGradientColor1'] as int? ?? const Color(0xFF1E1E1E).value,
+        json['appBarGradientColor1'] as int? ??
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       appBarGradientColor2: Color(
-        json['appBarGradientColor2'] as int? ?? const Color(0xFF2D2D2D).value,
+        json['appBarGradientColor2'] as int? ??
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
       folderTabsGradientColor1: Color(
         json['folderTabsGradientColor1'] as int? ??
-            const Color(0xFF1E1E1E).value,
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       folderTabsGradientColor2: Color(
         json['folderTabsGradientColor2'] as int? ??
-            const Color(0xFF2D2D2D).value,
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
     );
   }
@@ -1185,9 +1193,12 @@ class ThemeProvider with ChangeNotifier {
   Future<void> setUseGlassPanels(bool value) async {
     _activeTheme = _activeTheme.copyWith(useGlassPanels: value);
     _useGlassPanelsSaveTimer?.cancel();
-    _useGlassPanelsSaveTimer = Timer(const Duration(milliseconds: 300), () async {
-      await _saveActiveTheme();
-    });
+    _useGlassPanelsSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setTopBarBlur(double value) async {
@@ -1263,9 +1274,12 @@ class ThemeProvider with ChangeNotifier {
   Future<void> setUseCustomChatWallpaper(bool value) async {
     _activeTheme = _activeTheme.copyWith(useCustomChatWallpaper: value);
     _useCustomChatWallpaperSaveTimer?.cancel();
-    _useCustomChatWallpaperSaveTimer = Timer(const Duration(milliseconds: 300), () async {
-      await _saveActiveTheme();
-    });
+    _useCustomChatWallpaperSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setChatWallpaperType(ChatWallpaperType type) async {
@@ -1415,17 +1429,23 @@ class ThemeProvider with ChangeNotifier {
   Future<void> setShowDeletedMessages(bool value) async {
     _activeTheme = _activeTheme.copyWith(showDeletedMessages: value);
     _showDeletedMessagesSaveTimer?.cancel();
-    _showDeletedMessagesSaveTimer = Timer(const Duration(milliseconds: 300), () async {
-      await _saveActiveTheme();
-    });
+    _showDeletedMessagesSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setViewRedactHistory(bool value) async {
     _activeTheme = _activeTheme.copyWith(viewRedactHistory: value);
     _viewRedactHistorySaveTimer?.cancel();
-    _viewRedactHistorySaveTimer = Timer(const Duration(milliseconds: 300), () async {
-      await _saveActiveTheme();
-    });
+    _viewRedactHistorySaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setMessageBubbleOpacity(double value) async {
@@ -1682,17 +1702,23 @@ class ThemeProvider with ChangeNotifier {
   Future<void> setUseDesktopLayout(bool value) async {
     _activeTheme = _activeTheme.copyWith(useDesktopLayout: value);
     _useDesktopLayoutSaveTimer?.cancel();
-    _useDesktopLayoutSaveTimer = Timer(const Duration(milliseconds: 300), () async {
-      await _saveActiveTheme();
-    });
+    _useDesktopLayoutSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setUseAutoReplyColor(bool value) async {
     _activeTheme = _activeTheme.copyWith(useAutoReplyColor: value);
     _useAutoReplyColorSaveTimer?.cancel();
-    _useAutoReplyColorSaveTimer = Timer(const Duration(milliseconds: 300), () async {
-      await _saveActiveTheme();
-    });
+    _useAutoReplyColorSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setCustomReplyColor(Color? color) async {
@@ -1764,9 +1790,12 @@ class ThemeProvider with ChangeNotifier {
   Future<void> setUseGradientForAddAccountButton(bool value) async {
     _activeTheme = _activeTheme.copyWith(useGradientForAddAccountButton: value);
     _useGradientForAddAccountButtonSaveTimer?.cancel();
-    _useGradientForAddAccountButtonSaveTimer = Timer(const Duration(milliseconds: 300), () async {
-      await _saveActiveTheme();
-    });
+    _useGradientForAddAccountButtonSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setAddAccountButtonGradientColor1(Color color) async {
