@@ -155,39 +155,30 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
         return SimpleDialog(
           title: Text(title),
           children: [
-            _buildDialogOption(
-              'Все пользователи',
-              'ALL',
-              currentValue,
-              onSelect,
-            ),
-            _buildDialogOption(
-              'Только контакты',
-              'CONTACTS',
-              currentValue,
-              onSelect,
+            RadioGroup<String>(
+              groupValue: currentValue,
+              onChanged: (newValue) {
+                if (newValue != null) {
+                  onSelect(newValue);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    value: 'ALL',
+                    title: Text('Все пользователи'),
+                  ),
+                  RadioListTile<String>(
+                    value: 'CONTACTS',
+                    title: Text('Только контакты'),
+                  ),
+                ],
+              ),
             ),
           ],
         );
-      },
-    );
-  }
-
-  Widget _buildDialogOption(
-    String title,
-    String value,
-    String groupValue,
-    Function(String) onSelect,
-  ) {
-    return RadioListTile<String>(
-      title: Text(title),
-      value: value,
-      groupValue: groupValue,
-      onChanged: (newValue) {
-        if (newValue != null) {
-          onSelect(newValue);
-          Navigator.of(context).pop();
-        }
       },
     );
   }
@@ -404,7 +395,7 @@ class _OutlinedSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: colors.outline.withOpacity(0.3)),
+        border: Border.all(color: colors.outline.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: child,

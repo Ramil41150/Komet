@@ -64,6 +64,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Receiver for handling inline reply from notifications -->
+        <receiver
+            android:name=".NotificationReplyReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.gwid.app.REPLY_ACTION" />
+            </intent-filter>
+        </receiver>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

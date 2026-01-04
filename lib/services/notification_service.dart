@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data' as typed_data;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:gwid/services/avatar_cache_service.dart';
 import 'package:gwid/services/chat_cache_service.dart';
+import 'package:gwid/services/notification_settings_service.dart';
 import 'package:gwid/api/api_service.dart';
 import 'package:gwid/models/contact.dart';
 import 'package:gwid/screens/chat_screen.dart';
@@ -27,6 +29,11 @@ class NotificationService {
 
   // MethodChannel для нативных уведомлений Android
   static const _nativeChannel = MethodChannel('com.gwid.app/notifications');
+
+  // Константы паттернов вибрации
+  static const List<int> _vibrationPatternNone = [0];
+  static const List<int> _vibrationPatternShort = [0, 200, 100, 200];
+  static const List<int> _vibrationPatternLong = [0, 500, 200, 500];
 
   static Future<void> updateForegroundServiceNotification({
     String title = 'Komet',
@@ -148,6 +155,27 @@ class NotificationService {
               );
               _openChatFromNotification(chatIdFromPayload);
             });
+          }
+        }
+        return null;
+      case 'sendReplyFromNotification':
+        final args = call.arguments as Map<dynamic, dynamic>;
+        // Handle both int and Long from Android
+        final chatIdDynamic = args['chatId'];
+        final chatId = chatIdDynamic is int
+            ? chatIdDynamic
+            : (chatIdDynamic is num ? chatIdDynamic.toInt() : null);
+        final text = args['text'] as String?;
+
+        print("🔔 Получен ответ из уведомления: chatId=$chatId, text=$text");
+
+        if (chatId != null && text != null && text.isNotEmpty) {
+          try {
+            // Отправляем сообщение через API
+            ApiService.instance.sendMessage(chatId, text);
+            print("✅ Сообщение из уведомления отправлено успешно");
+          } catch (e) {
+            print("❌ Ошибка отправки сообщения из уведомления: $e");
           }
         }
         return null;
@@ -554,6 +582,7 @@ class NotificationService {
     String? avatarUrl,
     bool showPreview = true,
     bool isGroupChat = false,
+    bool isChannel = false,
     String? groupTitle,
   }) async {
     print("🔔 [NotificationService] showMessageNotification вызван:");
@@ -562,8 +591,29 @@ class NotificationService {
     print("   messageText: $messageText");
     print("   avatarUrl: $avatarUrl");
     print("   isGroupChat: $isGroupChat");
+    print("   isChannel: $isChannel");
     print("   groupTitle: $groupTitle");
     print("   showPreview: $showPreview");
+
+    // Проверяем новые настройки уведомлений
+    final settingsService = NotificationSettingsService();
+    final shouldShow = await settingsService.shouldShowNotification(
+      chatId: chatId,
+      isGroupChat: isGroupChat,
+      isChannel: isChannel,
+    );
+
+    if (!shouldShow) {
+      print("🔔 [NotificationService] Уведомления отключены для этого чата");
+      return;
+    }
+
+    // Получаем настройки для чата
+    final chatSettings = await settingsService.getSettingsForChat(
+      chatId: chatId,
+      isGroupChat: isGroupChat,
+      isChannel: isChannel,
+    );
 
     final prefs = await SharedPreferences.getInstance();
     final chatsPushEnabled = prefs.getString('chatsPushNotification') != 'OFF';
@@ -572,6 +622,7 @@ class NotificationService {
     print("🔔 [NotificationService] Настройки:");
     print("   chatsPushEnabled: $chatsPushEnabled");
     print("   pushDetails: $pushDetails");
+    print("   chatSettings: $chatSettings");
     print("   _initialized: $_initialized");
 
     if (!chatsPushEnabled) {
@@ -597,6 +648,38 @@ class NotificationService {
     // Пытаемся получить аватарку
     final avatarPath = await _ensureAvatarFile(avatarUrl, chatId);
 
+    // Получаем режим вибрации из настроек чата
+    final vibrationModeStr = chatSettings['vibration'] as String? ?? 'short';
+    final enableVibration = vibrationModeStr != 'none';
+    final vibrationPattern = _getVibrationPattern(vibrationModeStr);
+
+    // Определяем, можно ли ответить (нельзя в каналах)
+    final canReply = !isChannel;
+
+    // Получаем имя текущего пользователя для корректного отображения в inline reply
+    String? myName;
+    try {
+      final lastPayload = ApiService.instance.lastChatsPayload;
+      if (lastPayload != null) {
+        final profileData = lastPayload['profile'] as Map<String, dynamic>?;
+        final contactProfile = profileData?['contact'] as Map<String, dynamic>?;
+        if (contactProfile != null) {
+          final names = contactProfile['names'] as List<dynamic>? ?? [];
+          if (names.isNotEmpty) {
+            final nameData = names[0] as Map<String, dynamic>;
+            final firstName = nameData['firstName'] as String? ?? '';
+            final lastName = nameData['lastName'] as String? ?? '';
+            myName = '$firstName $lastName'.trim();
+            if (myName?.isEmpty == true) {
+              myName = null;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print("⚠️ Ошибка получения имени пользователя: $e");
+    }
+
     // На Android используем нативный канал для стиля как в Telegram
     if (Platform.isAndroid) {
       try {
@@ -607,9 +690,13 @@ class NotificationService {
           'avatarPath': avatarPath,
           'isGroupChat': isGroupChat,
           'groupTitle': groupTitle,
+          'enableVibration': enableVibration,
+          'vibrationPattern': vibrationPattern,
+          'canReply': canReply,
+          'myName': myName,
         });
         print(
-          "🔔 Показано нативное уведомление Android: ${isGroupChat ? '[$groupTitle] ' : ''}$senderName - $displayText",
+          "🔔 Показано нативное уведомление Android: ${isGroupChat ? '[$groupTitle] ' : ''}$senderName - $displayText (canReply: $canReply)",
         );
         return;
       } catch (e) {
@@ -637,7 +724,10 @@ class NotificationService {
         priority: Priority.high,
         category: AndroidNotificationCategory.message,
         showWhen: true,
-        enableVibration: true,
+        enableVibration: enableVibration,
+        vibrationPattern: enableVibration
+            ? typed_data.Int64List.fromList(vibrationPattern)
+            : null,
         playSound: true,
         icon: 'notification_icon',
         styleInformation: BigTextStyleInformation(
@@ -665,6 +755,20 @@ class NotificationService {
     print(
       "🔔 Показано уведомление: ${isGroupChat ? '[$groupTitle] ' : ''}$senderName - $displayText",
     );
+  }
+
+  /// Получить паттерн вибрации в зависимости от режима
+  List<int> _getVibrationPattern(String mode) {
+    switch (mode) {
+      case 'none':
+        return _vibrationPatternNone;
+      case 'short':
+        return _vibrationPatternShort;
+      case 'long':
+        return _vibrationPatternLong;
+      default:
+        return _vibrationPatternShort;
+    }
   }
 
   /// Показывает один выбранный тестовый вариант (по номеру).

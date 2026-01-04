@@ -157,7 +157,22 @@ extension ApiServiceConnection on ApiService {
       await prefs.setString('spoof_deviceid', deviceId);
     }
 
-    final payload = {'deviceId': deviceId, 'userAgent': userAgentPayload};
+    String mtInstanceId = prefs.getString('session_mt_instanceid') ?? '';
+    int clientSessionId = prefs.getInt('session_client_session_id') ?? 0;
+
+    if (mtInstanceId.isEmpty || clientSessionId == 0) {
+      mtInstanceId = const Uuid().v4();
+      clientSessionId = Random().nextInt(100) + 1;
+      await prefs.setString('session_mt_instanceid', mtInstanceId);
+      await prefs.setInt('session_client_session_id', clientSessionId);
+    }
+
+    final payload = {
+      'mt_instanceid': mtInstanceId,
+      'clientSessionId': clientSessionId,
+      'deviceId': deviceId,
+      'userAgent': userAgentPayload,
+    };
 
     await _sendMessage(6, payload);
     _handshakeSent = true;
@@ -404,7 +419,9 @@ extension ApiServiceConnection on ApiService {
           (decodedMessage['cmd'] == 0x100 || decodedMessage['cmd'] == 256) &&
           decodedMessage['payload'] != null &&
           decodedMessage['payload']['token'] != null) {
-        _handleSessionTerminated();
+        if (!_isTerminatingOtherSessions) {
+          _handleSessionTerminated();
+        }
         return;
       }
 
@@ -725,9 +742,6 @@ extension ApiServiceConnection on ApiService {
         await _connectWithFallback();
       } catch (e) {
         print('Ошибка при автоматическом переподключении: $e');
-        // Если подключение не удалось, _reconnect будет вызван снова через Timer
-        // Но так как _connectWithFallback уже сбросил _isConnecting в false,
-        // мы можем просто вызвать _reconnect() еще раз, если сокет все еще не подключен.
         if (!_socketConnected) {
           _reconnect();
         }
@@ -753,19 +767,29 @@ extension ApiServiceConnection on ApiService {
       return;
     }
 
-    // Обрабатываем постоянную очередь (сообщения)
     final persistentItems = _queueService.getPersistentItems();
     print('Обработка постоянной очереди: ${persistentItems.length} элементов');
     for (var item in persistentItems) {
+      if (_queueService.isMessageProcessed(item.id)) {
+        print(
+          'Сообщение ${item.id} уже было обработано, пропускаем и удаляем из очереди',
+        );
+        _queueService.removeFromQueue(item.id);
+        continue;
+      }
+
       print(
         'Отправляем из очереди: ${item.type.name}, opcode=${item.opcode}, cid=${item.cid}',
       );
+
       unawaited(
         _sendMessage(item.opcode, item.payload)
             .then((_) {
               print(
                 'Сообщение из очереди успешно отправлено, удаляем из очереди: ${item.id}',
               );
+
+              _queueService.markMessageAsProcessed(item.id);
               _queueService.removeFromQueue(item.id);
             })
             .catchError((e) {
@@ -774,12 +798,10 @@ extension ApiServiceConnection on ApiService {
       );
     }
 
-    // Обрабатываем временную очередь (загрузка чатов)
     final temporaryItems = _queueService.getTemporaryItems();
     print('Обработка временной очереди: ${temporaryItems.length} элементов');
     for (var item in temporaryItems) {
       if (item.type == QueueItemType.loadChat && item.chatId != null) {
-        // Проверяем, что пользователь все еще в этом чате
         if (currentActiveChatId == item.chatId) {
           print('Отправляем запрос загрузки чата ${item.chatId} из очереди');
           unawaited(

@@ -223,7 +223,7 @@ class MessageHandler {
         _handleNewMessage(chatId, payload);
       } else if (opcode == 67 && chatId != null) {
         _handleEditedMessage(chatId, payload);
-      } else if (opcode == 66 && chatId != null) {
+      } else if ((opcode == 66 || opcode == 142) && chatId != null) {
         _handleDeletedMessages(chatId, payload);
       } else if (opcode == 132) {
         _handlePresenceUpdate(payload);
@@ -484,7 +484,8 @@ class MessageHandler {
   }
 
   void _handleDeletedMessages(int chatId, Map<String, dynamic> payload) {
-    final deletedMessageIds = List<String>.from(payload['messageIds'] ?? []);
+    final rawMessageIds = payload['messageIds'] as List<dynamic>? ?? [];
+    final deletedMessageIds = rawMessageIds.map((id) => id.toString()).toList();
     ApiService.instance.clearCacheForChat(chatId);
 
     final int chatIndex = allChats.indexWhere((chat) => chat.id == chatId);
@@ -829,6 +830,7 @@ class MessageHandler {
         chatId < 0 ||
         (effectiveChat != null &&
             (effectiveChat.isGroup || effectiveChat.type == 'CHAT'));
+    final isChannel = effectiveChat?.type == 'CHANNEL';
     final groupTitle =
         effectiveChat?.title ??
         effectiveChat?.displayTitle ??
@@ -843,6 +845,7 @@ class MessageHandler {
       messageText: _getAttachmentPreviewText(message),
       avatarUrl: avatarUrl,
       isGroupChat: isGroupChat,
+      isChannel: isChannel,
       groupTitle: groupTitle,
     );
   }
@@ -898,6 +901,7 @@ class MessageHandler {
         chatId < 0 ||
         (effectiveChat != null &&
             (effectiveChat.isGroup || effectiveChat.type == 'CHAT'));
+    final isChannel = effectiveChat?.type == 'CHANNEL';
     final groupTitle =
         effectiveChat?.title ??
         effectiveChat?.displayTitle ??
@@ -910,6 +914,7 @@ class MessageHandler {
       messageText: _getAttachmentPreviewText(message),
       avatarUrl: avatarUrl,
       isGroupChat: isGroupChat,
+      isChannel: isChannel,
       groupTitle: groupTitle,
     );
   }

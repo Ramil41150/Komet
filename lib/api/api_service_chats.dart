@@ -1289,6 +1289,56 @@ extension ApiServiceChats on ApiService {
     print('Не удалось отредактировать сообщение $messageId после 3 попыток');
   }
 
+  Future<Message?> updateChatLastMessage(int chatId) async {
+    try {
+      final remainingMessages = await _chatCacheService.getCachedChatMessages(
+        chatId,
+      );
+      final newLastMessage =
+          remainingMessages != null && remainingMessages.isNotEmpty
+          ? (remainingMessages..sort((a, b) => b.time.compareTo(a.time))).first
+          : Message(
+              id: 'empty',
+              senderId: 0,
+              time: DateTime.now().millisecondsSinceEpoch,
+              text: '',
+              cid: null,
+              attaches: [],
+            );
+
+      final newLastMessageJson = newLastMessage.toJson();
+
+      final cachedChats = await _chatCacheService.getCachedChats();
+      if (cachedChats != null) {
+        for (var i = 0; i < cachedChats.length; i++) {
+          final chatJson = cachedChats[i];
+          if (chatJson['id'] == chatId) {
+            chatJson['lastMessage'] = newLastMessageJson;
+            await _chatCacheService.cacheChats(cachedChats);
+            break;
+          }
+        }
+      }
+
+      if (_lastChatsPayload != null) {
+        final chats = _lastChatsPayload!['chats'] as List<dynamic>;
+        for (var i = 0; i < chats.length; i++) {
+          final chatJson = chats[i] as Map<String, dynamic>;
+          if (chatJson['id'] == chatId) {
+            chatJson['lastMessage'] = newLastMessageJson;
+            break;
+          }
+        }
+      }
+
+      _lastChatsPayload = null;
+      return newLastMessage;
+    } catch (e) {
+      print('Ошибка обновления lastMessage чата: $e');
+      return null;
+    }
+  }
+
   Future<void> deleteMessage(
     int chatId,
     String messageId, {
@@ -1345,6 +1395,8 @@ extension ApiServiceChats on ApiService {
       if (ok) {
         print('Сообщение $messageId успешно удалено');
         await _chatCacheService.removeMessageFromCache(chatId, messageId);
+        await updateChatLastMessage(chatId);
+
         return;
       }
 

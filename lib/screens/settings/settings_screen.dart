@@ -13,6 +13,7 @@ import 'package:gwid/screens/settings/bypass_screen.dart';
 import 'package:gwid/screens/settings/about_screen.dart';
 import 'package:gwid/screens/debug_screen.dart';
 import 'package:gwid/screens/settings/komet_misc_screen.dart';
+import 'package:gwid/screens/settings/special_settings_screen.dart';
 import 'package:gwid/screens/settings/optimization_screen.dart';
 // import 'package:gwid/screens/settings/plugins_screen.dart';
 import 'package:gwid/screens/settings/plugin_section_screen.dart';
@@ -398,6 +399,8 @@ class _SettingsScreenState extends State<SettingsScreen>
         return 'О приложении';
       case 'komet':
         return 'Komet Misc';
+      case 'special':
+        return 'Особые настройки';
       case 'optimization':
         return 'Оптимизация';
       default:
@@ -423,6 +426,8 @@ class _SettingsScreenState extends State<SettingsScreen>
         return const AboutScreen(isModal: true);
       case 'komet':
         return const KometMiscScreen(isModal: true);
+      case 'special':
+        return const SpecialSettingsScreen(isModal: true);
       case 'optimization':
         return const OptimizationScreen(isModal: true);
       default:
@@ -440,6 +445,13 @@ class _SettingsScreenState extends State<SettingsScreen>
         title: "Komet Misc",
         subtitle: "Дополнительные настройки",
         screen: KometMiscScreen(isModal: widget.isModal),
+      ),
+      _SettingsItem(
+        type: _SettingsItemType.category,
+        icon: Icons.settings_suggest_outlined,
+        title: "Особые настройки",
+        subtitle: "Что то интересненькое...",
+        screen: SpecialSettingsScreen(isModal: widget.isModal),
       ),
       _SettingsItem(
         type: _SettingsItemType.category,
@@ -700,8 +712,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                 boxShadow: expansionProgress > 0
                     ? [
                         BoxShadow(
-                          color: colors.shadow.withOpacity(
-                            0.2 * expansionProgress,
+                          color: colors.shadow.withValues(
+                            alpha: 0.2 * expansionProgress,
                           ),
                           blurRadius: 20 * expansionProgress,
                           offset: Offset(0, 8 * expansionProgress),
@@ -755,7 +767,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               'ID: ${_myProfile!.id}',
               style: GoogleFonts.manrope(
                 textStyle: textTheme.bodyMedium,
-                color: colors.onSurfaceVariant.withOpacity(0.7),
+                color: colors.onSurfaceVariant.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -787,12 +799,12 @@ class _SettingsScreenState extends State<SettingsScreen>
                   ),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: colors.primary.withOpacity(0.3),
+                    color: colors.primary.withValues(alpha: 0.3),
                     width: 2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: colors.primary.withOpacity(0.1),
+                      color: colors.primary.withValues(alpha: 0.1),
                       blurRadius: 20,
                       offset: const Offset(0, 4),
                     ),
@@ -859,6 +871,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                 screenKey = 'about';
               else if (screen is KometMiscScreen)
                 screenKey = 'komet';
+              else if (screen is SpecialSettingsScreen)
+                screenKey = 'special';
               else if (screen is OptimizationScreen)
                 screenKey = 'optimization';
 
@@ -884,7 +898,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: colors.outline.withOpacity(0.2),
+                color: colors.outline.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -894,7 +908,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: colors.primaryContainer.withOpacity(0.5),
+                    color: colors.primaryContainer.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: colors.primary, size: 24),

@@ -1,6 +1,19 @@
 part of 'api_service.dart';
 
 extension ApiServiceAuth on ApiService {
+  void _resetSession() {
+    _messageQueue.clear();
+    _lastChatsPayload = null;
+    _chatsFetchedInThisSession = false;
+    _isSessionOnline = false;
+    _isSessionReady = false;
+    _handshakeSent = false;
+    _sessionId = DateTime.now().millisecondsSinceEpoch;
+    _lastActionTime = _sessionId;
+    _actionId = 1;
+    _isColdStartSent = false;
+  }
+
   Future<void> _clearAuthToken() async {
     print("Очищаем токен авторизации...");
     authToken = null;
@@ -34,7 +47,11 @@ extension ApiServiceAuth on ApiService {
   }
 
   void terminateAllSessions() {
+    _isTerminatingOtherSessions = true;
     _sendMessage(97, {});
+    Future.delayed(const Duration(seconds: 2), () {
+      _isTerminatingOtherSessions = false;
+    });
   }
 
   Future<void> verifyCode(String token, String code) async {
@@ -190,10 +207,16 @@ extension ApiServiceAuth on ApiService {
   Future<void> switchAccount(String accountId) async {
     print("Переключение на аккаунт: $accountId");
 
-    disconnect();
+    const invalidAccountError = 'invalid_token: Аккаунт недействителен';
 
     final accountManager = AccountManager();
     await accountManager.initialize();
+    final previousAccountId = accountManager.currentAccount?.id;
+    final previousToken = authToken;
+    final previousUserId = userId;
+
+    disconnect();
+
     await accountManager.switchAccount(accountId);
 
     final currentAccount = accountManager.currentAccount;
@@ -201,23 +224,71 @@ extension ApiServiceAuth on ApiService {
       authToken = currentAccount.token;
       userId = currentAccount.userId;
 
-      _messageQueue.clear();
-      _lastChatsPayload = null;
-      _chatsFetchedInThisSession = false;
-      _isSessionOnline = false;
-      _isSessionReady = false;
-      _handshakeSent = false;
+      _resetSession();
 
-      await connect();
+      bool invalidTokenDetected = false;
+      StreamSubscription? tempSubscription;
 
-      await waitUntilOnline();
+      tempSubscription = messages.listen((message) {
+        if (message != null && message['type'] == 'invalid_token') {
+          invalidTokenDetected = true;
+          tempSubscription?.cancel();
+        }
+      });
 
-      await getChatsAndContacts(force: true);
+      try {
+        await connect();
 
-      final profile = _lastChatsPayload?['profile'];
-      if (profile != null) {
-        final profileObj = Profile.fromJson(profile);
-        await accountManager.updateAccountProfile(accountId, profileObj);
+        await waitUntilOnline().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            if (invalidTokenDetected) {
+              throw Exception(invalidAccountError);
+            }
+            throw TimeoutException('Таймаут подключения');
+          },
+        );
+
+        if (invalidTokenDetected) {
+          throw Exception(invalidAccountError);
+        }
+
+        await getChatsAndContacts(force: true);
+
+        final profile = _lastChatsPayload?['profile'];
+        if (profile != null) {
+          final profileObj = Profile.fromJson(profile);
+          await accountManager.updateAccountProfile(accountId, profileObj);
+        }
+      } catch (e) {
+        tempSubscription?.cancel();
+
+        print("Ошибка переключения аккаунта: $e");
+
+        if (previousAccountId != null) {
+          print("Восстанавливаем предыдущий аккаунт: $previousAccountId");
+
+          await accountManager.switchAccount(previousAccountId);
+
+          disconnect();
+          authToken = previousToken;
+          userId = previousUserId;
+
+          _resetSession();
+
+          try {
+            await connect();
+            await waitUntilOnline().timeout(const Duration(seconds: 10));
+          } catch (reconnectError) {
+            print(
+              "Ошибка восстановления предыдущего аккаунта: $reconnectError",
+            );
+          }
+        }
+
+        rethrow;
+      } finally {
+        tempSubscription?.cancel();
       }
     }
   }

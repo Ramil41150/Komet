@@ -2,10 +2,27 @@ name: Build Android
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/build-android.yml'
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/build-android.yml'
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v3
 
@@ -14,7 +31,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -29,19 +45,6 @@ jobs:
           mkdir -p ~/.gradle
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> ~/.gradle/gradle.properties
           echo "kotlin.daemon.jvmargs=-Xmx1536m" >> ~/.gradle/gradle.properties
-
-      - name: Setup Keystore
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > android/app/Komet-Keystore.jks
-          echo "storePassword=$KEYSTORE_PASSWORD" > android/key.properties
-          echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
-          echo "keyAlias=$KEY_ALIAS" >> android/key.properties
-          echo "storeFile=Komet-Keystore.jks" >> android/key.properties
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
 
       - name: Build APK
         run: flutter build apk --release

@@ -2,10 +2,27 @@ name: Build Linux
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'lib/**'
+      - 'linux/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/build-linux.yml'
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'linux/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/build-linux.yml'
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v3
 
