@@ -1392,7 +1392,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     return PopScope(
       canPop: !_isSearchExpanded,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _isSearchExpanded) {
           _clearSearch();
         }
