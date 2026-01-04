@@ -1,0 +1,25 @@
+name: Auto comment on new issues
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment on new issue
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Четко и внятно обьясняйте возникающие проблемы. Старайтесь делать это кратко, емко и по делу.
+            При создании issue, удостоверьтесь, что такого issue не существует, иначе данный issue будет закрыт как дубликат с соответствующей ссылкой.
+
+            При наличии иных вопросов к разработчикам, вы можете задать их напрямую, через Telegram [в личных сообщениях каналу](https://t.me/TeamKomet?direct). Учтите, что вам могут отвечать разные люди.
+            Спасибо за понимание, приятного пользования нашим клиентом!
+
+            *TeamKomet*
