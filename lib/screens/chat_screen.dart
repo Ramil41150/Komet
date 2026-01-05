@@ -237,10 +237,15 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _botCommandsForBotId = botId;
-        _botCommands = const [];
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Не удалось загрузить команды бота.'),
+          action: SnackBarAction(
+            label: 'Повторить',
+            onPressed: _ensureBotCommandsLoaded,
+          ),
+        ),
+      );
     } finally {
       if (!mounted) return;
       setState(() {
