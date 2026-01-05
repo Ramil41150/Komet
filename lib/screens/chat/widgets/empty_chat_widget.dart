@@ -34,7 +34,7 @@ class EmptyChatWidget extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
-              color: colors.onSurface.withOpacity(0.6),
+              color: colors.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -96,4 +96,3 @@ class EmptyChatWidget extends StatelessWidget {
     return Icon(Icons.emoji_emotions, size: width, color: Colors.grey);
   }
 }
-

@@ -21,8 +21,7 @@ class ReadSettingsDialogContent extends StatefulWidget {
       _ReadSettingsDialogContentState();
 }
 
-class _ReadSettingsDialogContentState
-    extends State<ReadSettingsDialogContent> {
+class _ReadSettingsDialogContentState extends State<ReadSettingsDialogContent> {
   ChatReadSettings? _settings;
   bool _useDefault = true;
 
@@ -138,7 +137,7 @@ class _ReadSettingsDialogContentState
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: colors.onSurfaceVariant.withOpacity(0.4),
+              color: colors.onSurfaceVariant.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -156,53 +155,47 @@ class _ReadSettingsDialogContentState
           const Divider(),
           Flexible(
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RadioListTile<String>(
-                    title: const Text('По умолчанию'),
-                    subtitle: Text(_getDefaultDescription()),
-                    value: 'default',
-                    groupValue: selectedOption,
-                    onChanged: (value) => _setOption(value!),
-                  ),
-                  RadioListTile<String>(
-                    title: const Text('Отключить чтение'),
-                    subtitle: const Text(
-                      'Сообщения не будут отмечаться как прочитанные',
+              child: RadioGroup<String>(
+                groupValue: selectedOption,
+                onChanged: (value) => _setOption(value!),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RadioListTile<String>(
+                      value: 'default',
+                      title: const Text('По умолчанию'),
+                      subtitle: Text(_getDefaultDescription()),
                     ),
-                    value: 'disabled',
-                    groupValue: selectedOption,
-                    onChanged: (value) => _setOption(value!),
-                  ),
-                  RadioListTile<String>(
-                    title: const Text('Чтение при действиях'),
-                    subtitle: const Text(
-                      'Отмечать прочитанным при отправке сообщения',
+                    RadioListTile<String>(
+                      value: 'disabled',
+                      title: const Text('Отключить чтение'),
+                      subtitle: const Text(
+                        'Сообщения не будут отмечаться как прочитанные',
+                      ),
                     ),
-                    value: 'action',
-                    groupValue: selectedOption,
-                    onChanged: (value) => _setOption(value!),
-                  ),
-                  RadioListTile<String>(
-                    title: const Text('Чтение при входе в чат'),
-                    subtitle: const Text(
-                      'Отмечать прочитанным при открытии чата',
+                    RadioListTile<String>(
+                      value: 'action',
+                      title: const Text('Чтение при действиях'),
+                      subtitle: const Text(
+                        'Отмечать прочитанным при отправке сообщения',
+                      ),
                     ),
-                    value: 'enter',
-                    groupValue: selectedOption,
-                    onChanged: (value) => _setOption(value!),
-                  ),
-                  RadioListTile<String>(
-                    title: const Text('Чтение при действиях и при входе'),
-                    subtitle: const Text(
-                      'Отмечать прочитанным при отправке и при открытии',
+                    RadioListTile<String>(
+                      value: 'enter',
+                      title: const Text('Чтение при входе в чат'),
+                      subtitle: const Text(
+                        'Отмечать прочитанным при открытии чата',
+                      ),
                     ),
-                    value: 'both',
-                    groupValue: selectedOption,
-                    onChanged: (value) => _setOption(value!),
-                  ),
-                ],
+                    RadioListTile<String>(
+                      value: 'both',
+                      title: const Text('Чтение при действиях и при входе'),
+                      subtitle: const Text(
+                        'Отмечать прочитанным при отправке и при открытии',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -211,4 +204,3 @@ class _ReadSettingsDialogContentState
     );
   }
 }
-

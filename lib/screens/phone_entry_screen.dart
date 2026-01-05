@@ -116,6 +116,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
   bool _hasProxyConfigured = false;
   StreamSubscription? _apiSubscription;
   bool _isTosAccepted = false;
+  bool _isNavigatingToOtp = false;
   String _customPrefix = '';
 
   late final AnimationController _animationController;
@@ -152,7 +153,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
     _animationController.forward();
 
     _apiSubscription = ApiService.instance.messages.listen((message) {
-      if (message['opcode'] == 17 && mounted) {
+      if (message['opcode'] == 17 && mounted && !_isNavigatingToOtp) {
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (mounted) setState(() => _isLoading = false);
         });
@@ -164,6 +165,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
               : _selectedCountry.code;
           final String fullPhoneNumber =
               prefix + _maskFormatter.getUnmaskedText();
+          _isNavigatingToOtp = true;
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) =>
@@ -401,7 +403,9 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: colors.primaryContainer.withOpacity(0.5),
+                            color: colors.primaryContainer.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
                           child: const Image(
                             image: AssetImage('assets/images/komet_512.png'),
@@ -460,8 +464,9 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
                                   ? _requestOtp
                                   : null,
                               style: FilledButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -478,11 +483,11 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
                             OutlinedButton.icon(
                               onPressed: _isTosAccepted
                                   ? () => Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const TokenAuthScreen(),
-                                        ),
-                                      )
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const TokenAuthScreen(),
+                                      ),
+                                    )
                                   : null,
                               icon: const Icon(Icons.vpn_key_outlined),
                               label: Text(
@@ -492,8 +497,9 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -520,7 +526,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen>
               ),
               if (_isLoading)
                 Container(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -581,14 +587,11 @@ class _PhoneInputCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            colors.surfaceContainerHighest,
-            colors.surfaceContainer,
-          ],
+          colors: [colors.surfaceContainerHighest, colors.surfaceContainer],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: colors.outline.withOpacity(0.2),
+          color: colors.outline.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -731,10 +734,7 @@ class _TosCheckbox extends StatelessWidget {
   final bool isTosAccepted;
   final ValueChanged<bool?> onChanged;
 
-  const _TosCheckbox({
-    required this.isTosAccepted,
-    required this.onChanged,
-  });
+  const _TosCheckbox({required this.isTosAccepted, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -743,11 +743,9 @@ class _TosCheckbox extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest.withOpacity(0.5),
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colors.outline.withOpacity(0.2),
-        ),
+        border: Border.all(color: colors.outline.withValues(alpha: 0.2)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
@@ -829,23 +827,16 @@ class _SettingsButton extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: hasAnySettings
                   ? [
-                      Color.lerp(
-                        colors.primaryContainer,
-                        colors.primary,
-                        0.2,
-                      )!,
+                      Color.lerp(colors.primaryContainer, colors.primary, 0.2)!,
                       colors.primaryContainer,
                     ]
-                  : [
-                      colors.surfaceContainerHighest,
-                      colors.surfaceContainer,
-                    ],
+                  : [colors.surfaceContainerHighest, colors.surfaceContainer],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: hasAnySettings
-                  ? colors.primary.withOpacity(0.3)
-                  : colors.outline.withOpacity(0.2),
+                  ? colors.primary.withValues(alpha: 0.3)
+                  : colors.outline.withValues(alpha: 0.2),
               width: hasAnySettings ? 2 : 1,
             ),
           ),
@@ -859,7 +850,7 @@ class _SettingsButton extends StatelessWidget {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: hasAnySettings
-                          ? colors.primary.withOpacity(0.15)
+                          ? colors.primary.withValues(alpha: 0.15)
                           : colors.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -897,7 +888,7 @@ class _SettingsButton extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: colors.primary.withOpacity(0.1),
+                    color: colors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -989,7 +980,7 @@ class _FooterText extends StatelessWidget {
       TextSpan(
         style: GoogleFonts.manrope(
           textStyle: textTheme.bodySmall,
-          color: colors.onSurfaceVariant.withOpacity(0.7),
+          color: colors.onSurfaceVariant.withValues(alpha: 0.7),
         ),
         children: [
           const TextSpan(
@@ -1017,4 +1008,3 @@ class _FooterText extends StatelessWidget {
     );
   }
 }
-

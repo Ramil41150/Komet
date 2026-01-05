@@ -69,8 +69,7 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
       _lastMarker = _loadedMembers.isNotEmpty
           ? _loadedMembers.last['id'] as int?
           : null;
-      _hasMoreMembers =
-          _loadedMembers.length >= 50; 
+      _hasMoreMembers = _loadedMembers.length >= 50;
       _isLoadingMembers = false;
       print(
         'DEBUG: Участники загружены из кэша, marker: $_lastMarker, hasMore: $_hasMoreMembers',
@@ -286,7 +285,7 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                   );
                 });
 
-                widget.onChatUpdated?.call(); 
+                widget.onChatUpdated?.call();
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Название группы изменено')),
@@ -515,7 +514,7 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
           ),
           FilledButton(
             onPressed: () {
-              Navigator.of(dialogContext).pop(); 
+              Navigator.of(dialogContext).pop();
               try {
                 ApiService.instance.leaveGroup(widget.chatId);
 
@@ -556,16 +555,14 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
 
   Future<void> _createInviteLink() async {
     try {
-      
       final currentChat = _getCurrentGroupChat();
       String? cachedLink;
-      
+
       if (currentChat != null) {
         cachedLink = currentChat['link'] as String?;
         if (cachedLink != null && cachedLink.isNotEmpty) {
-          
           await Clipboard.setData(ClipboardData(text: cachedLink));
-          
+
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -577,7 +574,6 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
         }
       }
 
-      
       final link = await ApiService.instance.createGroupInviteLink(
         widget.chatId,
         revokePrivateLink: true,
@@ -594,9 +590,6 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
         return;
       }
 
-      
-      
-      
       await Clipboard.setData(ClipboardData(text: link));
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -717,8 +710,8 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(0.1),
-                    Colors.black.withOpacity(0.5),
+                    Colors.black.withValues(alpha: 0.1),
+                    Colors.black.withValues(alpha: 0.5),
                   ],
                   stops: const [0.5, 0.7, 1.0],
                 ),
@@ -739,10 +732,10 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
     if (currentChat != null) {
       final admins = currentChat['admins'] as List<dynamic>? ?? [];
       amIAdmin = admins.contains(widget.myId);
-      
-      
+
       final options = currentChat['options'] as Map<String, dynamic>?;
-      final membersCanSeeLink = options?['MEMBERS_CAN_SEE_PRIVATE_LINK'] as bool? ?? false;
+      final membersCanSeeLink =
+          options?['MEMBERS_CAN_SEE_PRIVATE_LINK'] as bool? ?? false;
       canSeeLink = amIAdmin || membersCanSeeLink;
     }
 
@@ -750,25 +743,25 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
       padding: const EdgeInsets.all(16.0),
       sliver: SliverList(
         delegate: SliverChildListDelegate.fixed([
-          
           if (canSeeLink) ...[
             Builder(
               builder: (context) {
                 final currentChat = _getCurrentGroupChat();
                 final existingLink = currentChat?['link'] as String?;
-                
+
                 if (existingLink != null && existingLink.isNotEmpty) {
-                  
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceVariant.withOpacity(0.5),
+                          color: colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: colorScheme.outline.withOpacity(0.3),
+                            color: colorScheme.outline.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Column(
@@ -808,7 +801,6 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                     ],
                   );
                 } else {
-                  
                   return SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
@@ -827,7 +819,7 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
             const Divider(),
             const SizedBox(height: 8),
           ],
-          
+
           if (amIAdmin) ...[
             SizedBox(
               width: double.infinity,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:async';
 
 enum AppTheme { system, light, dark, black }
 
@@ -141,6 +142,8 @@ class CustomThemePreset {
 
   UIMode uiMode;
   bool showSeconds;
+  bool showDeletedMessages;
+  bool viewRedactHistory;
   double messageBubbleOpacity;
   String messageStyle;
   double messageBackgroundBlur;
@@ -218,6 +221,8 @@ class CustomThemePreset {
     this.profileDialogOpacity = 0.26,
     this.uiMode = UIMode.both,
     this.showSeconds = false,
+    this.showDeletedMessages = false,
+    this.viewRedactHistory = false,
     this.messageBubbleOpacity = 0.12,
     this.messageStyle = 'glass',
     this.messageBackgroundBlur = 0.0,
@@ -301,6 +306,8 @@ class CustomThemePreset {
     double? profileDialogOpacity,
     UIMode? uiMode,
     bool? showSeconds,
+    bool? showDeletedMessages,
+    bool? viewRedactHistory,
     double? messageBubbleOpacity,
     String? messageStyle,
     double? messageBackgroundBlur,
@@ -380,6 +387,8 @@ class CustomThemePreset {
       profileDialogOpacity: profileDialogOpacity ?? this.profileDialogOpacity,
       uiMode: uiMode ?? this.uiMode,
       showSeconds: showSeconds ?? this.showSeconds,
+      showDeletedMessages: showDeletedMessages ?? this.showDeletedMessages,
+      viewRedactHistory: viewRedactHistory ?? this.viewRedactHistory,
       messageBubbleOpacity: messageBubbleOpacity ?? this.messageBubbleOpacity,
       messageStyle: messageStyle ?? this.messageStyle,
       messageBackgroundBlur:
@@ -409,29 +418,40 @@ class CustomThemePreset {
       useDesktopLayout: useDesktopLayout ?? this.useDesktopLayout,
       useAutoReplyColor: useAutoReplyColor ?? this.useAutoReplyColor,
       customReplyColor: customReplyColor ?? this.customReplyColor,
-      useGradientForChatsList: useGradientForChatsList ?? this.useGradientForChatsList,
-      chatsListBackgroundType: chatsListBackgroundType ?? this.chatsListBackgroundType,
+      useGradientForChatsList:
+          useGradientForChatsList ?? this.useGradientForChatsList,
+      chatsListBackgroundType:
+          chatsListBackgroundType ?? this.chatsListBackgroundType,
       chatsListImagePath: chatsListImagePath ?? this.chatsListImagePath,
       useGradientForDrawer: useGradientForDrawer ?? this.useGradientForDrawer,
       drawerBackgroundType: drawerBackgroundType ?? this.drawerBackgroundType,
       drawerImagePath: drawerImagePath ?? this.drawerImagePath,
-      useGradientForAddAccountButton: useGradientForAddAccountButton ?? this.useGradientForAddAccountButton,
+      useGradientForAddAccountButton:
+          useGradientForAddAccountButton ?? this.useGradientForAddAccountButton,
       useGradientForAppBar: useGradientForAppBar ?? this.useGradientForAppBar,
       appBarBackgroundType: appBarBackgroundType ?? this.appBarBackgroundType,
       appBarImagePath: appBarImagePath ?? this.appBarImagePath,
-      useGradientForFolderTabs: useGradientForFolderTabs ?? this.useGradientForFolderTabs,
-      folderTabsBackgroundType: folderTabsBackgroundType ?? this.folderTabsBackgroundType,
+      useGradientForFolderTabs:
+          useGradientForFolderTabs ?? this.useGradientForFolderTabs,
+      folderTabsBackgroundType:
+          folderTabsBackgroundType ?? this.folderTabsBackgroundType,
       folderTabsImagePath: folderTabsImagePath ?? this.folderTabsImagePath,
-      chatsListGradientColor1: chatsListGradientColor1 ?? this.chatsListGradientColor1,
-      chatsListGradientColor2: chatsListGradientColor2 ?? this.chatsListGradientColor2,
+      chatsListGradientColor1:
+          chatsListGradientColor1 ?? this.chatsListGradientColor1,
+      chatsListGradientColor2:
+          chatsListGradientColor2 ?? this.chatsListGradientColor2,
       drawerGradientColor1: drawerGradientColor1 ?? this.drawerGradientColor1,
       drawerGradientColor2: drawerGradientColor2 ?? this.drawerGradientColor2,
-      addAccountButtonGradientColor1: addAccountButtonGradientColor1 ?? this.addAccountButtonGradientColor1,
-      addAccountButtonGradientColor2: addAccountButtonGradientColor2 ?? this.addAccountButtonGradientColor2,
+      addAccountButtonGradientColor1:
+          addAccountButtonGradientColor1 ?? this.addAccountButtonGradientColor1,
+      addAccountButtonGradientColor2:
+          addAccountButtonGradientColor2 ?? this.addAccountButtonGradientColor2,
       appBarGradientColor1: appBarGradientColor1 ?? this.appBarGradientColor1,
       appBarGradientColor2: appBarGradientColor2 ?? this.appBarGradientColor2,
-      folderTabsGradientColor1: folderTabsGradientColor1 ?? this.folderTabsGradientColor1,
-      folderTabsGradientColor2: folderTabsGradientColor2 ?? this.folderTabsGradientColor2,
+      folderTabsGradientColor1:
+          folderTabsGradientColor1 ?? this.folderTabsGradientColor1,
+      folderTabsGradientColor2:
+          folderTabsGradientColor2 ?? this.folderTabsGradientColor2,
     );
   }
 
@@ -440,11 +460,11 @@ class CustomThemePreset {
       'id': id,
       'name': name,
       'appTheme': appTheme.index,
-      'accentColor': accentColor.value,
+      'accentColor': accentColor.toARGB32(),
       'useCustomChatWallpaper': useCustomChatWallpaper,
       'chatWallpaperType': chatWallpaperType.index,
-      'chatWallpaperColor1': chatWallpaperColor1.value,
-      'chatWallpaperColor2': chatWallpaperColor2.value,
+      'chatWallpaperColor1': chatWallpaperColor1.toARGB32(),
+      'chatWallpaperColor2': chatWallpaperColor2.toARGB32(),
       'chatWallpaperImagePath': chatWallpaperImagePath,
       'chatWallpaperVideoPath': chatWallpaperVideoPath,
       'chatWallpaperBlur': chatWallpaperBlur,
@@ -461,6 +481,8 @@ class CustomThemePreset {
       'profileDialogOpacity': profileDialogOpacity,
       'uiMode': uiMode.index,
       'showSeconds': showSeconds,
+      'showDeletedMessages': showDeletedMessages,
+      'viewRedactHistory': viewRedactHistory,
       'messageBubbleOpacity': messageBubbleOpacity,
       'messageStyle': messageStyle,
       'messageBackgroundBlur': messageBackgroundBlur,
@@ -468,10 +490,10 @@ class CustomThemePreset {
       'messageShadowIntensity': messageShadowIntensity,
       'messageBorderRadius': messageBorderRadius,
       'messageFontSize': messageFontSize,
-      'myBubbleColorLight': myBubbleColorLight?.value,
-      'theirBubbleColorLight': theirBubbleColorLight?.value,
-      'myBubbleColorDark': myBubbleColorDark?.value,
-      'theirBubbleColorDark': theirBubbleColorDark?.value,
+      'myBubbleColorLight': myBubbleColorLight?.toARGB32(),
+      'theirBubbleColorLight': theirBubbleColorLight?.toARGB32(),
+      'myBubbleColorDark': myBubbleColorDark?.toARGB32(),
+      'theirBubbleColorDark': theirBubbleColorDark?.toARGB32(),
       'messageBubbleType': messageBubbleType.index,
       'sendOnEnter': sendOnEnter,
       'chatTransition': chatTransition.index,
@@ -485,7 +507,7 @@ class CustomThemePreset {
       'ultraOptimizeChats': ultraOptimizeChats,
       'useDesktopLayout': useDesktopLayout,
       'useAutoReplyColor': useAutoReplyColor,
-      'customReplyColor': customReplyColor?.value,
+      'customReplyColor': customReplyColor?.toARGB32(),
       'useGradientForChatsList': useGradientForChatsList,
       'chatsListBackgroundType': chatsListBackgroundType.index,
       'chatsListImagePath': chatsListImagePath,
@@ -499,38 +521,43 @@ class CustomThemePreset {
       'useGradientForFolderTabs': useGradientForFolderTabs,
       'folderTabsBackgroundType': folderTabsBackgroundType.index,
       'folderTabsImagePath': folderTabsImagePath,
-      'chatsListGradientColor1': chatsListGradientColor1.value,
-      'chatsListGradientColor2': chatsListGradientColor2.value,
-      'drawerGradientColor1': drawerGradientColor1.value,
-      'drawerGradientColor2': drawerGradientColor2.value,
-      'addAccountButtonGradientColor1': addAccountButtonGradientColor1.value,
-      'addAccountButtonGradientColor2': addAccountButtonGradientColor2.value,
-      'appBarGradientColor1': appBarGradientColor1.value,
-      'appBarGradientColor2': appBarGradientColor2.value,
-      'folderTabsGradientColor1': folderTabsGradientColor1.value,
-      'folderTabsGradientColor2': folderTabsGradientColor2.value,
+      'chatsListGradientColor1': chatsListGradientColor1.toARGB32(),
+      'chatsListGradientColor2': chatsListGradientColor2.toARGB32(),
+      'drawerGradientColor1': drawerGradientColor1.toARGB32(),
+      'drawerGradientColor2': drawerGradientColor2.toARGB32(),
+      'addAccountButtonGradientColor1': addAccountButtonGradientColor1
+          .toARGB32(),
+      'addAccountButtonGradientColor2': addAccountButtonGradientColor2
+          .toARGB32(),
+      'appBarGradientColor1': appBarGradientColor1.toARGB32(),
+      'appBarGradientColor2': appBarGradientColor2.toARGB32(),
+      'folderTabsGradientColor1': folderTabsGradientColor1.toARGB32(),
+      'folderTabsGradientColor2': folderTabsGradientColor2.toARGB32(),
     };
   }
 
   factory CustomThemePreset.fromJson(Map<String, dynamic> json) {
-    final int appThemeIndex = (json['appTheme'] as int?) ?? AppTheme.system.index;
+    final int appThemeIndex =
+        (json['appTheme'] as int?) ?? AppTheme.system.index;
     final AppTheme parsedTheme =
         (appThemeIndex >= 0 && appThemeIndex < AppTheme.values.length)
-            ? AppTheme.values[appThemeIndex]
-            : AppTheme.system;
+        ? AppTheme.values[appThemeIndex]
+        : AppTheme.system;
     return CustomThemePreset(
       id: json['id'] as String,
       name: json['name'] as String,
       appTheme: parsedTheme,
-      accentColor: Color(json['accentColor'] as int? ?? Colors.blue.value),
+      accentColor: Color(json['accentColor'] as int? ?? Colors.blue.toARGB32()),
       useCustomChatWallpaper: json['useCustomChatWallpaper'] as bool? ?? false,
       chatWallpaperType:
           ChatWallpaperType.values[json['chatWallpaperType'] as int? ?? 0],
       chatWallpaperColor1: Color(
-        json['chatWallpaperColor1'] as int? ?? const Color(0xFF101010).value,
+        json['chatWallpaperColor1'] as int? ??
+            const Color(0xFF101010).toARGB32(),
       ),
       chatWallpaperColor2: Color(
-        json['chatWallpaperColor2'] as int? ?? const Color(0xFF202020).value,
+        json['chatWallpaperColor2'] as int? ??
+            const Color(0xFF202020).toARGB32(),
       ),
       chatWallpaperImagePath: json['chatWallpaperImagePath'] as String?,
       chatWallpaperVideoPath: json['chatWallpaperVideoPath'] as String?,
@@ -554,6 +581,8 @@ class CustomThemePreset {
           .clamp(0.0, 1.0),
       uiMode: UIMode.values[json['uiMode'] as int? ?? 0],
       showSeconds: json['showSeconds'] as bool? ?? false,
+      showDeletedMessages: json['showDeletedMessages'] as bool? ?? false,
+      viewRedactHistory: json['viewRedactHistory'] as bool? ?? false,
       messageBubbleOpacity: (json['messageBubbleOpacity'] as double? ?? 0.12)
           .clamp(0.0, 1.0),
       messageStyle: json['messageStyle'] as String? ?? 'glass',
@@ -611,56 +640,65 @@ class CustomThemePreset {
       customReplyColor: json['customReplyColor'] != null
           ? Color(json['customReplyColor'] as int)
           : null,
-      useGradientForChatsList: json['useGradientForChatsList'] as bool? ?? false,
-      chatsListBackgroundType: ChatsListBackgroundType.values[
-        json['chatsListBackgroundType'] as int? ?? 0
-      ],
+      useGradientForChatsList:
+          json['useGradientForChatsList'] as bool? ?? false,
+      chatsListBackgroundType: ChatsListBackgroundType
+          .values[json['chatsListBackgroundType'] as int? ?? 0],
       chatsListImagePath: json['chatsListImagePath'] as String?,
       useGradientForDrawer: json['useGradientForDrawer'] as bool? ?? false,
-      drawerBackgroundType: DrawerBackgroundType.values[
-        json['drawerBackgroundType'] as int? ?? 0
-      ],
+      drawerBackgroundType: DrawerBackgroundType
+          .values[json['drawerBackgroundType'] as int? ?? 0],
       drawerImagePath: json['drawerImagePath'] as String?,
-      useGradientForAddAccountButton: json['useGradientForAddAccountButton'] as bool? ?? false,
+      useGradientForAddAccountButton:
+          json['useGradientForAddAccountButton'] as bool? ?? false,
       useGradientForAppBar: json['useGradientForAppBar'] as bool? ?? false,
-      appBarBackgroundType: AppBarBackgroundType.values[
-        json['appBarBackgroundType'] as int? ?? 0
-      ],
+      appBarBackgroundType: AppBarBackgroundType
+          .values[json['appBarBackgroundType'] as int? ?? 0],
       appBarImagePath: json['appBarImagePath'] as String?,
-      useGradientForFolderTabs: json['useGradientForFolderTabs'] as bool? ?? false,
-      folderTabsBackgroundType: FolderTabsBackgroundType.values[
-        json['folderTabsBackgroundType'] as int? ?? 0
-      ],
+      useGradientForFolderTabs:
+          json['useGradientForFolderTabs'] as bool? ?? false,
+      folderTabsBackgroundType: FolderTabsBackgroundType
+          .values[json['folderTabsBackgroundType'] as int? ?? 0],
       folderTabsImagePath: json['folderTabsImagePath'] as String?,
       chatsListGradientColor1: Color(
-        json['chatsListGradientColor1'] as int? ?? const Color(0xFF1E1E1E).value,
+        json['chatsListGradientColor1'] as int? ??
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       chatsListGradientColor2: Color(
-        json['chatsListGradientColor2'] as int? ?? const Color(0xFF2D2D2D).value,
+        json['chatsListGradientColor2'] as int? ??
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
       drawerGradientColor1: Color(
-        json['drawerGradientColor1'] as int? ?? const Color(0xFF1E1E1E).value,
+        json['drawerGradientColor1'] as int? ??
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       drawerGradientColor2: Color(
-        json['drawerGradientColor2'] as int? ?? const Color(0xFF2D2D2D).value,
+        json['drawerGradientColor2'] as int? ??
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
       addAccountButtonGradientColor1: Color(
-        json['addAccountButtonGradientColor1'] as int? ?? const Color(0xFF1E1E1E).value,
+        json['addAccountButtonGradientColor1'] as int? ??
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       addAccountButtonGradientColor2: Color(
-        json['addAccountButtonGradientColor2'] as int? ?? const Color(0xFF2D2D2D).value,
+        json['addAccountButtonGradientColor2'] as int? ??
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
       appBarGradientColor1: Color(
-        json['appBarGradientColor1'] as int? ?? const Color(0xFF1E1E1E).value,
+        json['appBarGradientColor1'] as int? ??
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       appBarGradientColor2: Color(
-        json['appBarGradientColor2'] as int? ?? const Color(0xFF2D2D2D).value,
+        json['appBarGradientColor2'] as int? ??
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
       folderTabsGradientColor1: Color(
-        json['folderTabsGradientColor1'] as int? ?? const Color(0xFF1E1E1E).value,
+        json['folderTabsGradientColor1'] as int? ??
+            const Color(0xFF1E1E1E).toARGB32(),
       ),
       folderTabsGradientColor2: Color(
-        json['folderTabsGradientColor2'] as int? ?? const Color(0xFF2D2D2D).value,
+        json['folderTabsGradientColor2'] as int? ??
+            const Color(0xFF2D2D2D).toARGB32(),
       ),
     );
   }
@@ -669,6 +707,16 @@ class CustomThemePreset {
 class ThemeProvider with ChangeNotifier {
   CustomThemePreset _activeTheme = CustomThemePreset.createDefault();
   List<CustomThemePreset> _savedThemes = [];
+  Timer? _showSecondsSaveTimer;
+  Timer? _useCustomChatWallpaperSaveTimer;
+  Timer? _useAutoReplyColorSaveTimer;
+  Timer? _useDesktopLayoutSaveTimer;
+  Timer? _useGradientForAddAccountButtonSaveTimer;
+  Timer? _useGlassPanelsSaveTimer;
+  Timer? _materialYouSaveTimer;
+  Timer? _showDeletedMessagesSaveTimer;
+  Timer? _viewRedactHistorySaveTimer;
+  bool _showSeconds = false;
 
   Color? _myBubbleColorLight;
   Color? _theirBubbleColorLight;
@@ -689,7 +737,7 @@ class ThemeProvider with ChangeNotifier {
   bool _optimization = false;
   bool _showFpsOverlay = false;
   int _maxFrameRate = 60;
-  
+
   CustomThemePreset? _savedThemeBeforeOptimization;
   AppTheme _lastNonSystemTheme = AppTheme.dark;
 
@@ -719,7 +767,8 @@ class ThemeProvider with ChangeNotifier {
   double get chatWallpaperBlurSigma => _activeTheme.chatWallpaperBlurSigma;
   double get chatWallpaperImageBlur => _activeTheme.chatWallpaperImageBlur;
 
-  bool get useGlassPanels => _optimization ? false : _activeTheme.useGlassPanels;
+  bool get useGlassPanels =>
+      _optimization ? false : _activeTheme.useGlassPanels;
   double get topBarBlur => _activeTheme.topBarBlur;
   double get topBarOpacity => _activeTheme.topBarOpacity;
   double get bottomBarBlur => _activeTheme.bottomBarBlur;
@@ -732,7 +781,9 @@ class ThemeProvider with ChangeNotifier {
   double get profileDialogOpacity => _activeTheme.profileDialogOpacity;
 
   UIMode get uiMode => _activeTheme.uiMode;
-  bool get showSeconds => _activeTheme.showSeconds;
+  bool get showSeconds => _showSeconds;
+  bool get showDeletedMessages => _activeTheme.showDeletedMessages;
+  bool get viewRedactHistory => _activeTheme.viewRedactHistory;
   double get messageBubbleOpacity => _activeTheme.messageBubbleOpacity;
   String get messageStyle => _activeTheme.messageStyle;
   double get messageBackgroundBlur => _activeTheme.messageBackgroundBlur;
@@ -778,21 +829,26 @@ class ThemeProvider with ChangeNotifier {
   bool get debugReadOnEnter => _debugReadOnEnter;
   bool get debugReadOnAction => _debugReadOnAction;
 
-  TransitionOption get chatTransition => (_optimization || _activeTheme.ultraOptimizeChats)
+  TransitionOption get chatTransition =>
+      (_optimization || _activeTheme.ultraOptimizeChats)
       ? TransitionOption.systemDefault
       : _activeTheme.chatTransition;
-  TransitionOption get tabTransition => (_optimization || _activeTheme.ultraOptimizeChats)
+  TransitionOption get tabTransition =>
+      (_optimization || _activeTheme.ultraOptimizeChats)
       ? TransitionOption.systemDefault
       : _activeTheme.tabTransition;
-  TransitionOption get messageTransition => (_optimization || _activeTheme.ultraOptimizeChats)
+  TransitionOption get messageTransition =>
+      (_optimization || _activeTheme.ultraOptimizeChats)
       ? TransitionOption.systemDefault
       : _activeTheme.messageTransition;
-  TransitionOption get extraTransition => (_optimization || _activeTheme.ultraOptimizeChats)
+  TransitionOption get extraTransition =>
+      (_optimization || _activeTheme.ultraOptimizeChats)
       ? TransitionOption.systemDefault
       : _activeTheme.extraTransition;
   double get messageSlideDistance => _activeTheme.messageSlideDistance;
   double get extraAnimationStrength => _activeTheme.extraAnimationStrength;
-  bool get animatePhotoMessages => (_optimization || _activeTheme.ultraOptimizeChats)
+  bool get animatePhotoMessages =>
+      (_optimization || _activeTheme.ultraOptimizeChats)
       ? false
       : _activeTheme.animatePhotoMessages;
   bool get optimizeChats => _activeTheme.optimizeChats;
@@ -801,24 +857,31 @@ class ThemeProvider with ChangeNotifier {
   bool get useAutoReplyColor => _activeTheme.useAutoReplyColor;
   Color? get customReplyColor => _activeTheme.customReplyColor;
   bool get useGradientForChatsList => _activeTheme.useGradientForChatsList;
-  ChatsListBackgroundType get chatsListBackgroundType => _activeTheme.chatsListBackgroundType;
+  ChatsListBackgroundType get chatsListBackgroundType =>
+      _activeTheme.chatsListBackgroundType;
   String? get chatsListImagePath => _activeTheme.chatsListImagePath;
   bool get useGradientForDrawer => _activeTheme.useGradientForDrawer;
-  DrawerBackgroundType get drawerBackgroundType => _activeTheme.drawerBackgroundType;
+  DrawerBackgroundType get drawerBackgroundType =>
+      _activeTheme.drawerBackgroundType;
   String? get drawerImagePath => _activeTheme.drawerImagePath;
-  bool get useGradientForAddAccountButton => _activeTheme.useGradientForAddAccountButton;
+  bool get useGradientForAddAccountButton =>
+      _activeTheme.useGradientForAddAccountButton;
   bool get useGradientForAppBar => _activeTheme.useGradientForAppBar;
-  AppBarBackgroundType get appBarBackgroundType => _activeTheme.appBarBackgroundType;
+  AppBarBackgroundType get appBarBackgroundType =>
+      _activeTheme.appBarBackgroundType;
   String? get appBarImagePath => _activeTheme.appBarImagePath;
   bool get useGradientForFolderTabs => _activeTheme.useGradientForFolderTabs;
-  FolderTabsBackgroundType get folderTabsBackgroundType => _activeTheme.folderTabsBackgroundType;
+  FolderTabsBackgroundType get folderTabsBackgroundType =>
+      _activeTheme.folderTabsBackgroundType;
   String? get folderTabsImagePath => _activeTheme.folderTabsImagePath;
   Color get chatsListGradientColor1 => _activeTheme.chatsListGradientColor1;
   Color get chatsListGradientColor2 => _activeTheme.chatsListGradientColor2;
   Color get drawerGradientColor1 => _activeTheme.drawerGradientColor1;
   Color get drawerGradientColor2 => _activeTheme.drawerGradientColor2;
-  Color get addAccountButtonGradientColor1 => _activeTheme.addAccountButtonGradientColor1;
-  Color get addAccountButtonGradientColor2 => _activeTheme.addAccountButtonGradientColor2;
+  Color get addAccountButtonGradientColor1 =>
+      _activeTheme.addAccountButtonGradientColor1;
+  Color get addAccountButtonGradientColor2 =>
+      _activeTheme.addAccountButtonGradientColor2;
   Color get appBarGradientColor1 => _activeTheme.appBarGradientColor1;
   Color get appBarGradientColor2 => _activeTheme.appBarGradientColor2;
   Color get folderTabsGradientColor1 => _activeTheme.folderTabsGradientColor1;
@@ -876,9 +939,9 @@ class ThemeProvider with ChangeNotifier {
         prefs.getInt('last_non_system_theme') ?? AppTheme.dark.index;
     final AppTheme storedLastNonSystemTheme =
         (storedLastNonSystemIndex >= 0 &&
-                storedLastNonSystemIndex < AppTheme.values.length)
-            ? AppTheme.values[storedLastNonSystemIndex]
-            : AppTheme.dark;
+            storedLastNonSystemIndex < AppTheme.values.length)
+        ? AppTheme.values[storedLastNonSystemIndex]
+        : AppTheme.dark;
     _lastNonSystemTheme = storedLastNonSystemTheme == AppTheme.system
         ? AppTheme.dark
         : storedLastNonSystemTheme;
@@ -915,10 +978,14 @@ class ThemeProvider with ChangeNotifier {
     _debugReadOnAction = prefs.getBool('debug_read_on_action') ?? true;
     _highQualityPhotos = prefs.getBool('high_quality_photos') ?? true;
     _blockBypass = prefs.getBool('block_bypass') ?? false;
-    _chatPreviewMode = ChatPreviewMode.values[prefs.getInt('chat_preview_mode') ?? 0];
+    _chatPreviewMode =
+        ChatPreviewMode.values[prefs.getInt('chat_preview_mode') ?? 0];
     _optimization = prefs.getBool('optimization') ?? false;
     _showFpsOverlay = prefs.getBool('show_fps_overlay') ?? false;
     _maxFrameRate = prefs.getInt('max_frame_rate') ?? 60;
+
+    // Загружаем showSeconds отдельно для быстрого доступа
+    _showSeconds = prefs.getBool('show_seconds') ?? false;
 
     await loadChatSpecificWallpapers();
 
@@ -1019,10 +1086,10 @@ class ThemeProvider with ChangeNotifier {
       _savedThemes.add(newPreset);
       await _saveThemeListToPrefs();
       notifyListeners();
-      return true; 
+      return true;
     } catch (e) {
       debugPrint("Ошибка импорта темы: $e");
-      return false; 
+      return false;
     }
   }
 
@@ -1049,15 +1116,18 @@ class ThemeProvider with ChangeNotifier {
   }
 
   Future<void> setMaterialYouEnabled(bool enabled) async {
-    if (enabled) {
-      await setTheme(AppTheme.system);
-      return;
-    }
+    _materialYouSaveTimer?.cancel();
+    _materialYouSaveTimer = Timer(const Duration(milliseconds: 300), () async {
+      if (enabled) {
+        await setTheme(AppTheme.system);
+        return;
+      }
 
-    final fallback = (_lastNonSystemTheme == AppTheme.system)
-        ? AppTheme.dark
-        : _lastNonSystemTheme;
-    await setTheme(fallback);
+      final fallback = (_lastNonSystemTheme == AppTheme.system)
+          ? AppTheme.dark
+          : _lastNonSystemTheme;
+      await setTheme(fallback);
+    });
   }
 
   Future<void> setAccentColor(Color color) async {
@@ -1105,8 +1175,7 @@ class ThemeProvider with ChangeNotifier {
       myLightLight,
     ).toColor();
 
-    
-    final Color theirColorLight = const Color(0xFF464646); 
+    final Color theirColorLight = const Color(0xFF464646);
 
     if (_myBubbleColorLight == myColorLight &&
         _theirBubbleColorLight == theirColorLight &&
@@ -1123,8 +1192,13 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> setUseGlassPanels(bool value) async {
     _activeTheme = _activeTheme.copyWith(useGlassPanels: value);
-    notifyListeners();
-    await _saveActiveTheme();
+    _useGlassPanelsSaveTimer?.cancel();
+    _useGlassPanelsSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setTopBarBlur(double value) async {
@@ -1199,8 +1273,13 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> setUseCustomChatWallpaper(bool value) async {
     _activeTheme = _activeTheme.copyWith(useCustomChatWallpaper: value);
-    notifyListeners();
-    await _saveActiveTheme();
+    _useCustomChatWallpaperSaveTimer?.cancel();
+    _useCustomChatWallpaperSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setChatWallpaperType(ChatWallpaperType type) async {
@@ -1338,9 +1417,35 @@ class ThemeProvider with ChangeNotifier {
   }
 
   Future<void> setShowSeconds(bool value) async {
-    _activeTheme = _activeTheme.copyWith(showSeconds: value);
-    notifyListeners();
-    await _saveActiveTheme();
+    if (_showSeconds == value) return;
+    _showSeconds = value;
+    _showSecondsSaveTimer?.cancel();
+    _showSecondsSaveTimer = Timer(const Duration(milliseconds: 300), () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('show_seconds', value);
+    });
+  }
+
+  Future<void> setShowDeletedMessages(bool value) async {
+    _activeTheme = _activeTheme.copyWith(showDeletedMessages: value);
+    _showDeletedMessagesSaveTimer?.cancel();
+    _showDeletedMessagesSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
+  }
+
+  Future<void> setViewRedactHistory(bool value) async {
+    _activeTheme = _activeTheme.copyWith(viewRedactHistory: value);
+    _viewRedactHistorySaveTimer?.cancel();
+    _viewRedactHistorySaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setMessageBubbleOpacity(double value) async {
@@ -1542,20 +1647,17 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> setOptimization(bool value) async {
     if (value && !_optimization) {
-      
       _savedThemeBeforeOptimization = _activeTheme;
-      
-      
+
       _activeTheme = _activeTheme.copyWith(
-        
         chatTransition: TransitionOption.systemDefault,
         tabTransition: TransitionOption.systemDefault,
         messageTransition: TransitionOption.systemDefault,
         extraTransition: TransitionOption.systemDefault,
         animatePhotoMessages: false,
-        
+
         useGlassPanels: false,
-        
+
         useCustomChatWallpaper: false,
         chatsListBackgroundType: ChatsListBackgroundType.none,
         drawerBackgroundType: DrawerBackgroundType.none,
@@ -1566,32 +1668,31 @@ class ThemeProvider with ChangeNotifier {
         useGradientForAppBar: false,
         useGradientForFolderTabs: false,
         useGradientForAddAccountButton: false,
-        
+
         topBarBlur: 0.0,
         bottomBarBlur: 0.0,
         profileDialogBlur: 0.0,
         messageMenuBlur: 0.0,
         chatWallpaperImageBlur: 0.0,
         messageBackgroundBlur: 0.0,
-        
+
         topBarOpacity: 1.0,
         bottomBarOpacity: 1.0,
         profileDialogOpacity: 1.0,
         messageMenuOpacity: 1.0,
-        messageBubbleOpacity: 0.0, 
+        messageBubbleOpacity: 0.0,
         messageTextOpacity: 1.0,
       );
-      
+
       await _saveActiveTheme();
     } else if (!value && _optimization) {
-      
       if (_savedThemeBeforeOptimization != null) {
         _activeTheme = _savedThemeBeforeOptimization!;
         _savedThemeBeforeOptimization = null;
         await _saveActiveTheme();
       }
     }
-    
+
     _optimization = value;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
@@ -1600,14 +1701,24 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> setUseDesktopLayout(bool value) async {
     _activeTheme = _activeTheme.copyWith(useDesktopLayout: value);
-    notifyListeners();
-    await _saveActiveTheme();
+    _useDesktopLayoutSaveTimer?.cancel();
+    _useDesktopLayoutSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setUseAutoReplyColor(bool value) async {
     _activeTheme = _activeTheme.copyWith(useAutoReplyColor: value);
-    notifyListeners();
-    await _saveActiveTheme();
+    _useAutoReplyColorSaveTimer?.cancel();
+    _useAutoReplyColorSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setCustomReplyColor(Color? color) async {
@@ -1678,8 +1789,13 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> setUseGradientForAddAccountButton(bool value) async {
     _activeTheme = _activeTheme.copyWith(useGradientForAddAccountButton: value);
-    notifyListeners();
-    await _saveActiveTheme();
+    _useGradientForAddAccountButtonSaveTimer?.cancel();
+    _useGradientForAddAccountButtonSaveTimer = Timer(
+      const Duration(milliseconds: 300),
+      () async {
+        await _saveActiveTheme();
+      },
+    );
   }
 
   Future<void> setAddAccountButtonGradientColor1(Color color) async {
@@ -1742,7 +1858,9 @@ class ThemeProvider with ChangeNotifier {
     await _saveActiveTheme();
   }
 
-  Future<void> setFolderTabsBackgroundType(FolderTabsBackgroundType type) async {
+  Future<void> setFolderTabsBackgroundType(
+    FolderTabsBackgroundType type,
+  ) async {
     _activeTheme = _activeTheme.copyWith(folderTabsBackgroundType: type);
     notifyListeners();
     await _saveActiveTheme();
