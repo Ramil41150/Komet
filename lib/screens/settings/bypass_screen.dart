@@ -13,7 +13,6 @@ class BypassScreen extends StatefulWidget {
 }
 
 class _BypassScreenState extends State<BypassScreen> {
-  
   int _selectedTab = 0;
   bool _kometAutoCompleteEnabled = false;
   bool _specialMessagesEnabled = true;
@@ -65,7 +64,6 @@ class _BypassScreenState extends State<BypassScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          
           LayoutBuilder(
             builder: (context, constraints) {
               final isNarrow = constraints.maxWidth < 480;
@@ -75,7 +73,9 @@ class _BypassScreenState extends State<BypassScreen> {
                 decoration: BoxDecoration(
                   color: colors.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.outline.withOpacity(0.2)),
+                  border: Border.all(
+                    color: colors.outline.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -116,7 +116,7 @@ class _BypassScreenState extends State<BypassScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colors.primaryContainer.withOpacity(0.3),
+                color: colors.primaryContainer.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -183,7 +183,9 @@ class _BypassScreenState extends State<BypassScreen> {
               decoration: BoxDecoration(
                 color: colors.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: colors.outline.withOpacity(0.3)),
+                border: Border.all(
+                  color: colors.outline.withValues(alpha: 0.3),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,13 +219,14 @@ class _BypassScreenState extends State<BypassScreen> {
               ),
             ),
           ] else ...[
-            
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: colors.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.outline.withOpacity(0.25)),
+                border: Border.all(
+                  color: colors.outline.withValues(alpha: 0.25),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,7 +260,7 @@ class _BypassScreenState extends State<BypassScreen> {
                       color: colors.surface,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: colors.outline.withOpacity(0.3),
+                        color: colors.outline.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Column(
@@ -289,7 +292,7 @@ class _BypassScreenState extends State<BypassScreen> {
                               "привет",
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFFFF0000), 
+                                color: Color(0xFFFF0000),
                               ),
                             ),
                             Text(
@@ -353,8 +356,8 @@ class _BypassScreenState extends State<BypassScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: colors.surfaceContainerHighest.withOpacity(
-                              0.6,
+                            color: colors.surfaceContainerHighest.withValues(
+                              alpha: 0.6,
                             ),
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -539,7 +542,7 @@ class _BypassScreenState extends State<BypassScreen> {
             child: Container(
               width: double.infinity,
               height: double.infinity,
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
             ),
           ),
 
@@ -553,7 +556,7 @@ class _BypassScreenState extends State<BypassScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -602,10 +605,12 @@ class _BypassScreenState extends State<BypassScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: colors.primaryContainer.withOpacity(0.3),
+                            color: colors.primaryContainer.withValues(
+                              alpha: 0.3,
+                            ),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: colors.outline.withOpacity(0.3),
+                              color: colors.outline.withValues(alpha: 0.3),
                             ),
                           ),
                           child: Column(
@@ -632,7 +637,9 @@ class _BypassScreenState extends State<BypassScreen> {
                               Text(
                                 "Эта функция предназначена для обхода ограничений и блокировок. Используйте с осторожностью и только в законных целях.",
                                 style: TextStyle(
-                                  color: colors.onSurface.withOpacity(0.8),
+                                  color: colors.onSurface.withValues(
+                                    alpha: 0.8,
+                                  ),
                                   fontSize: 14,
                                 ),
                               ),

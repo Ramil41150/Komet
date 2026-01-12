@@ -494,7 +494,7 @@ class _TokenAuthScreenState extends State<TokenAuthScreen>
               ),
               if (_isLoading)
                 Container(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   child: const Center(child: CircularProgressIndicator()),
                 ),
             ],
@@ -539,7 +539,7 @@ class _AuthMethodCard extends StatelessWidget {
             gradient: gradient,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: colors.outline.withOpacity(0.2),
+              color: colors.outline.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -555,11 +555,7 @@ class _AuthMethodCard extends StatelessWidget {
                       color: colors.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(
-                      icon,
-                      color: colors.onSurfaceVariant,
-                      size: 28,
-                    ),
+                    child: Icon(icon, color: colors.onSurfaceVariant, size: 28),
                   ),
                 ],
               ),
@@ -585,7 +581,7 @@ class _AuthMethodCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: colors.secondaryContainer.withOpacity(0.5),
+                    color: colors.secondaryContainer.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -643,10 +639,7 @@ class _TokenAuthCard extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onPressed;
 
-  const _TokenAuthCard({
-    required this.controller,
-    required this.onPressed,
-  });
+  const _TokenAuthCard({required this.controller, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -663,14 +656,11 @@ class _TokenAuthCard extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                colors.surfaceContainerHighest,
-                colors.surfaceContainer,
-              ],
+              colors: [colors.surfaceContainerHighest, colors.surfaceContainer],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: colors.outline.withOpacity(0.2),
+              color: colors.outline.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -715,7 +705,7 @@ class _TokenAuthCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colors.secondaryContainer.withOpacity(0.5),
+                  color: colors.secondaryContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -767,9 +757,7 @@ class _TokenAuthCard extends StatelessWidget {
                   children: [
                     Text(
                       'Войти с токеном',
-                      style: GoogleFonts.manrope(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),

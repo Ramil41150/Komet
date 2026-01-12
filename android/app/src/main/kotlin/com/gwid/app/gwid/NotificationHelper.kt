@@ -34,19 +34,25 @@ data class MessageData(
 class NotificationHelper(private val context: Context) {
 
     companion object {
-        const val CHANNEL_ID = "chat_messages_native"
+        const val CHANNEL_ID = "chat_messages_native_v2"
         const val CHANNEL_NAME = "Сообщения чатов"
         const val CHANNEL_DESC = "Уведомления о новых сообщениях"
-        
+
         const val BACKGROUND_SERVICE_CHANNEL_ID = "background_service"
         const val BACKGROUND_SERVICE_CHANNEL_NAME = "Фоновый сервис"
         const val BACKGROUND_SERVICE_CHANNEL_DESC = "Поддерживает приложение активным в фоне"
         const val BACKGROUND_SERVICE_NOTIFICATION_ID = 888
-        
+
         // Хранилище сообщений для каждого чата (chatId -> список сообщений)
         private val chatMessages = mutableMapOf<Long, MutableList<MessageData>>()
         // Хранилище Person для каждого отправителя (senderKey -> Person)
         private val personCache = mutableMapOf<String, Person>()
+    }
+
+    private fun safeMyDisplayName(myName: String?, conversationTitle: String?): String {
+        return myName
+            ?.takeIf { it.isNotBlank() && (conversationTitle == null || it != conversationTitle) }
+            ?: "Я"
     }
 
     init {
@@ -59,14 +65,15 @@ class NotificationHelper(private val context: Context) {
             val importance = NotificationManager.IMPORTANCE_HIGH
             val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance).apply {
                 description = CHANNEL_DESC
-                enableVibration(true)
+                // Не включаем вибрацию на канале, чтобы можно было управлять ей в каждом уведомлении отдельно
+                enableVibration(false)
                 setShowBadge(true)
             }
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
-    
+
     private fun createBackgroundServiceChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val importance = NotificationManager.IMPORTANCE_MIN
@@ -81,7 +88,7 @@ class NotificationHelper(private val context: Context) {
             notificationManager.createNotificationChannel(channel)
         }
     }
-    
+
     // Очистить накопленные сообщения для чата (вызывается когда пользователь открыл чат)
     fun clearMessagesForChat(chatId: Long) {
         android.util.Log.d("NotificationHelper", "clearMessagesForChat вызван для chatId: $chatId")
@@ -89,7 +96,7 @@ class NotificationHelper(private val context: Context) {
         // Также отменяем уведомление
         cancelNotification(chatId)
     }
-    
+
     // Отменить уведомление для чата
     fun cancelNotification(chatId: Long) {
         val notificationId = chatId.hashCode()
@@ -110,14 +117,18 @@ class NotificationHelper(private val context: Context) {
         messageText: String,
         avatarPath: String?,
         isGroupChat: Boolean,
-        groupTitle: String?
+        groupTitle: String?,
+        enableVibration: Boolean = true,
+        vibrationPattern: List<Long>? = null,
+        canReply: Boolean = true,
+        myName: String? = null
     ) {
         // Преобразуем Long в Int для notification ID (используем hashCode)
         val notificationId = chatId.hashCode()
-        
+
         // Создаём ключ для отправителя
         val senderKey = "sender_${senderName.hashCode()}_$chatId"
-        
+
         // Создаём круглую аватарку
         val avatarBitmap = avatarPath?.let { path ->
             val file = File(path)
@@ -140,7 +151,7 @@ class NotificationHelper(private val context: Context) {
 
             personBuilder.build()
         }
-        
+
         // Добавляем сообщение в историю чата
         val messageData = MessageData(
             senderName = senderName,
@@ -148,10 +159,10 @@ class NotificationHelper(private val context: Context) {
             timestamp = System.currentTimeMillis(),
             senderKey = senderKey
         )
-        
+
         val messages = chatMessages.getOrPut(chatId) { mutableListOf() }
         messages.add(messageData)
-        
+
         // Ограничиваем количество сообщений (последние 10)
         if (messages.size > 10) {
             messages.removeAt(0)
@@ -161,7 +172,7 @@ class NotificationHelper(private val context: Context) {
         val shortcutId = "shortcut_chat_$notificationId"
         // Для групп shortcut показывает название группы, для личных - имя отправителя
         val shortcutLabel = if (isGroupChat && groupTitle != null) groupTitle else senderName
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
                 .setShortLabel(shortcutLabel)
@@ -176,15 +187,37 @@ class NotificationHelper(private val context: Context) {
             ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
         }
 
-        // Создаём MessagingStyle с накопленными сообщениями
-        val messagingStyle = NotificationCompat.MessagingStyle(person)
-            .setConversationTitle(if (isGroupChat) groupTitle else senderName)
+        // Conversation title (название чата) используется системой отдельно.
+        // Для исходящих сообщений берём имя текущего пользователя. Если оно совпадает с названием чата,
+        // Android-UI может визуально «дублировать» заголовок, поэтому подставляем "Я".
+        val conversationTitle = if (isGroupChat) groupTitle else senderName
+        val safeMyName = safeMyDisplayName(myName, conversationTitle)
+
+        // Создаём Person для текущего пользователя (я) для MessagingStyle
+        val mePerson = Person.Builder()
+            .setName(safeMyName)
+            .setKey("me")
+            .build()
+
+        // Создаём MessagingStyle с текущим пользователем (я), а не отправителем
+        val messagingStyle = NotificationCompat.MessagingStyle(mePerson)
+            .setConversationTitle(conversationTitle)
             .setGroupConversation(isGroupChat)
-        
+
         // Добавляем все накопленные сообщения
         for (msg in messages) {
-            // Получаем Person для этого отправителя (может быть разные отправители в группе)
-            val msgPerson = personCache[msg.senderKey] ?: person
+            val msgPerson = when (msg.senderKey) {
+                "me" -> mePerson
+                else -> {
+                    personCache[msg.senderKey]
+                        ?: Person.Builder()
+                            .setName(msg.senderName)
+                            .setKey(msg.senderKey)
+                            .setImportant(true)
+                            .build()
+                            .also { personCache[msg.senderKey] = it }
+                }
+            }
             messagingStyle.addMessage(msg.text, msg.timestamp, msgPerson)
         }
 
@@ -202,6 +235,9 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Группировка уведомлений - используем chatId как groupKey
+        val groupKey = "chat_group_$chatId"
+
         // Строим уведомление
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.notification_icon)
@@ -211,17 +247,244 @@ class NotificationHelper(private val context: Context) {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setShortcutId(shortcutId)
+            .setGroup(groupKey) // Группировка по chatId
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
 
         // Добавляем largeIcon (показывается в свёрнутом виде)
         if (avatarBitmap != null) {
             builder.setLargeIcon(avatarBitmap)
         }
 
+        // Настройка вибрации
+        if (enableVibration && vibrationPattern != null && vibrationPattern.isNotEmpty()) {
+            builder.setVibrate(vibrationPattern.toLongArray())
+        } else if (!enableVibration) {
+            builder.setVibrate(longArrayOf(0)) // Без вибрации
+        }
+
+        // Добавляем inline reply action, если чат позволяет отправлять сообщения
+        if (canReply) {
+            val replyLabel = "Ответить"
+            val remoteInput = androidx.core.app.RemoteInput.Builder("key_text_reply")
+                .setLabel(replyLabel)
+                .build()
+
+            val replyIntent = Intent(context, NotificationReplyReceiver::class.java).apply {
+                action = "com.gwid.app.REPLY_ACTION"
+                putExtra("chat_id", chatId)
+                putExtra("sender_name", senderName)
+                putExtra("is_group_chat", isGroupChat)
+                putExtra("group_title", groupTitle)
+                putExtra("my_name", safeMyName)
+                putExtra("avatar_path", avatarPath)
+            }
+
+            val replyPendingIntent = PendingIntent.getBroadcast(
+                context,
+                (chatId.hashCode() + 1),
+                replyIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+
+            val replyAction = NotificationCompat.Action.Builder(
+                android.R.drawable.ic_menu_send,
+                replyLabel,
+                replyPendingIntent
+            )
+                .addRemoteInput(remoteInput)
+                .setAllowGeneratedReplies(true)
+                .build()
+
+            builder.addAction(replyAction)
+        }
+
         // Показываем уведомление
         try {
             NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+
+            // Если есть несколько сообщений в этом чате, создаём summary notification
+            if (messages.size > 1) {
+                createGroupSummaryNotification(chatId, groupKey, messages.size, shortcutLabel)
+            }
         } catch (e: SecurityException) {
             // Нет разрешения на уведомления
+            e.printStackTrace()
+        }
+    }
+
+    fun addOutgoingReplyAndUpdateNotification(
+        chatId: Long,
+        replyText: String,
+        senderName: String,
+        isGroupChat: Boolean,
+        groupTitle: String?,
+        avatarPath: String?,
+        myName: String?
+    ) {
+        val notificationId = chatId.hashCode()
+        val conversationTitle = if (isGroupChat) groupTitle else senderName
+        val safeMyName = safeMyDisplayName(myName, conversationTitle)
+
+        val avatarBitmap = avatarPath?.let { path ->
+            val file = File(path)
+            if (file.exists()) {
+                val original = BitmapFactory.decodeFile(path)
+                original?.let { getCircularBitmap(it) }
+            } else null
+        }
+
+        // Ensure sender Person exists (for 1:1 title/shortcut consistency)
+        val senderKey = "sender_${senderName.hashCode()}_$chatId"
+        if (!personCache.containsKey(senderKey)) {
+            val personBuilder = Person.Builder()
+                .setName(senderName)
+                .setKey(senderKey)
+                .setImportant(true)
+            if (avatarBitmap != null) {
+                personBuilder.setIcon(IconCompat.createWithBitmap(avatarBitmap))
+            }
+            personCache[senderKey] = personBuilder.build()
+        }
+
+        val messages = chatMessages.getOrPut(chatId) { mutableListOf() }
+        messages.add(
+            MessageData(
+                senderName = safeMyName,
+                text = replyText,
+                timestamp = System.currentTimeMillis(),
+                senderKey = "me"
+            )
+        )
+        if (messages.size > 10) {
+            messages.removeAt(0)
+        }
+
+        val mePerson = Person.Builder()
+            .setName(safeMyName)
+            .setKey("me")
+            .build()
+
+        val messagingStyle = NotificationCompat.MessagingStyle(mePerson)
+            .setConversationTitle(conversationTitle)
+            .setGroupConversation(isGroupChat)
+
+        for (msg in messages) {
+            val msgPerson = when (msg.senderKey) {
+                "me" -> mePerson
+                else -> {
+                    personCache[msg.senderKey]
+                        ?: Person.Builder()
+                            .setName(msg.senderName)
+                            .setKey(msg.senderKey)
+                            .setImportant(true)
+                            .build()
+                            .also { personCache[msg.senderKey] = it }
+                }
+            }
+            messagingStyle.addMessage(msg.text, msg.timestamp, msgPerson)
+        }
+
+        val shortcutId = "shortcut_chat_$notificationId"
+        val shortcutLabel = if (isGroupChat && groupTitle != null) groupTitle else senderName
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
+                .setShortLabel(shortcutLabel)
+                .setLongLived(true)
+                .setPerson(personCache[senderKey]!!)
+                .setIntent(Intent(context, MainActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    putExtra("chat_id", chatId)
+                })
+                .build()
+            ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
+        }
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("chat_id", chatId)
+            putExtra("payload", "chat_$chatId")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val groupKey = "chat_group_$chatId"
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.notification_icon)
+            .setStyle(messagingStyle)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setShortcutId(shortcutId)
+            .setGroup(groupKey)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+
+        if (avatarBitmap != null) {
+            builder.setLargeIcon(avatarBitmap)
+        }
+
+        // Inline reply action (keeps working after update)
+        val replyLabel = "Ответить"
+        val remoteInput = androidx.core.app.RemoteInput.Builder("key_text_reply")
+            .setLabel(replyLabel)
+            .build()
+
+        val replyIntent = Intent(context, NotificationReplyReceiver::class.java).apply {
+            action = "com.gwid.app.REPLY_ACTION"
+            putExtra("chat_id", chatId)
+            putExtra("sender_name", senderName)
+            putExtra("is_group_chat", isGroupChat)
+            putExtra("group_title", groupTitle)
+            putExtra("my_name", safeMyName)
+            putExtra("avatar_path", avatarPath)
+        }
+        val replyPendingIntent = PendingIntent.getBroadcast(
+            context,
+            (chatId.hashCode() + 1),
+            replyIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        )
+        val replyAction = NotificationCompat.Action.Builder(
+            android.R.drawable.ic_menu_send,
+            replyLabel,
+            replyPendingIntent
+        )
+            .addRemoteInput(remoteInput)
+            .setAllowGeneratedReplies(true)
+            .build()
+        builder.addAction(replyAction)
+
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+        } catch (_: SecurityException) {
+        }
+    }
+
+    // Создание summary notification для группы уведомлений
+    private fun createGroupSummaryNotification(
+        chatId: Long,
+        groupKey: String,
+        messageCount: Int,
+        chatTitle: String
+    ) {
+        val summaryNotificationId = (chatId.hashCode() + 1000000) // Уникальный ID для summary
+
+        val summaryBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.notification_icon)
+            .setContentTitle(chatTitle)
+            .setContentText("$messageCount ${if (messageCount == 1) "сообщение" else if (messageCount < 5) "сообщения" else "сообщений"}")
+            .setGroup(groupKey)
+            .setGroupSummary(true)
+            .setAutoCancel(true)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+
+        try {
+            NotificationManagerCompat.from(context).notify(summaryNotificationId, summaryBuilder.build())
+        } catch (e: SecurityException) {
             e.printStackTrace()
         }
     }
@@ -254,7 +517,7 @@ class NotificationHelper(private val context: Context) {
 
         return output
     }
-    
+
     // Обновить уведомление фонового сервиса с кнопкой действия
     fun updateForegroundServiceNotification(title: String, content: String) {
         try {
@@ -271,37 +534,37 @@ class NotificationHelper(private val context: Context) {
                     data = android.net.Uri.parse("package:${context.packageName}")
                 }
             }
-            
+
             val settingsPendingIntent = PendingIntent.getActivity(
                 context,
                 0,
                 settingsIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            
-            val compactTitle = "$title активен" // "Komet активен" 
-            
+
+            val compactTitle = "$title активен" // "Komet активен"
+
             val expandedStyle = NotificationCompat.BigTextStyle()
                 .bigText("Нажмите, чтобы отключить это уведомление")
                 .setSummaryText(null)
-            
+
             val builder = NotificationCompat.Builder(context, BACKGROUND_SERVICE_CHANNEL_ID)
                 .setSmallIcon(R.drawable.notification_icon)
-                .setContentTitle(compactTitle) // "Komet Активно" 
+                .setContentTitle(compactTitle) // "Komet Активно"
                 .setStyle(expandedStyle)
                 .setPriority(NotificationCompat.PRIORITY_MIN)
                 .setOngoing(true) // Уведомление нельзя смахнуть
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
-                .setShowWhen(false) 
-                .setOnlyAlertOnce(true) 
+                .setShowWhen(false)
+                .setOnlyAlertOnce(true)
                 .setContentIntent(settingsPendingIntent) // При нажатии на уведомление открываем настройки канала
-            
+
             // Показываем уведомление
             NotificationManagerCompat.from(context).notify(
                 BACKGROUND_SERVICE_NOTIFICATION_ID,
                 builder.build()
             )
-            
+
             android.util.Log.d("NotificationHelper", "Уведомление фонового сервиса обновлено с кнопкой действия")
         } catch (e: Exception) {
             android.util.Log.e("NotificationHelper", "Ошибка обновления уведомления фонового сервиса: ${e.message}")

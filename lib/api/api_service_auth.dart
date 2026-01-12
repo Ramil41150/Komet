@@ -1,6 +1,19 @@
 part of 'api_service.dart';
 
 extension ApiServiceAuth on ApiService {
+  void _resetSession() {
+    _messageQueue.clear();
+    _lastChatsPayload = null;
+    _chatsFetchedInThisSession = false;
+    _isSessionOnline = false;
+    _isSessionReady = false;
+    _handshakeSent = false;
+    _sessionId = DateTime.now().millisecondsSinceEpoch;
+    _lastActionTime = _sessionId;
+    _actionId = 1;
+    _isColdStartSent = false;
+  }
+
   Future<void> _clearAuthToken() async {
     print("Очищаем токен авторизации...");
     authToken = null;
@@ -19,7 +32,7 @@ extension ApiServiceAuth on ApiService {
 
   Future<void> requestOtp(String phoneNumber, {bool resend = false}) async {
     if (!_socketConnected || _socket == null) {
-        await connect();
+      await connect();
     }
 
     final payload = {
@@ -34,7 +47,11 @@ extension ApiServiceAuth on ApiService {
   }
 
   void terminateAllSessions() {
+    _isTerminatingOtherSessions = true;
     _sendMessage(97, {});
+    Future.delayed(const Duration(seconds: 2), () {
+      _isTerminatingOtherSessions = false;
+    });
   }
 
   Future<void> verifyCode(String token, String code) async {
@@ -43,7 +60,7 @@ extension ApiServiceAuth on ApiService {
     _currentPasswordEmail = null;
 
     if (!_socketConnected || _socket == null) {
-        await connect();
+      await connect();
     }
 
     final payload = {
@@ -60,7 +77,9 @@ extension ApiServiceAuth on ApiService {
     final payload = {'trackId': trackId, 'password': password};
 
     _sendMessage(115, payload);
-    print('Пароль отправлен с payload: ${truncatePayloadObjectForLog(payload)}');
+    print(
+      'Пароль отправлен с payload: ${truncatePayloadObjectForLog(payload)}',
+    );
   }
 
   Map<String, String?> getPasswordAuthData() {
@@ -83,7 +102,9 @@ extension ApiServiceAuth on ApiService {
     final payload = {'password': password, 'hint': hint};
 
     _sendMessage(116, payload);
-    print('Запрос на установку пароля отправлен с payload: ${truncatePayloadObjectForLog(payload)}');
+    print(
+      'Запрос на установку пароля отправлен с payload: ${truncatePayloadObjectForLog(payload)}',
+    );
   }
 
   Future<void> saveToken(
@@ -133,7 +154,8 @@ extension ApiServiceAuth on ApiService {
     }
 
     int attempts = 0;
-    while ((!_chatsFetchedInThisSession || _lastChatsPayload == null) && attempts < 50) {
+    while ((!_chatsFetchedInThisSession || _lastChatsPayload == null) &&
+        attempts < 50) {
       await Future.delayed(const Duration(milliseconds: 100));
       attempts++;
     }
@@ -153,7 +175,7 @@ extension ApiServiceAuth on ApiService {
 
   Future<bool> hasToken() async {
     if (FreshModeHelper.isEnabled) return false;
-    
+
     if (authToken == null) {
       final accountManager = AccountManager();
       await accountManager.initialize();
@@ -163,21 +185,10 @@ extension ApiServiceAuth on ApiService {
       if (currentAccount != null) {
         authToken = currentAccount.token;
         userId = currentAccount.userId;
-        
-        
-        
       } else {
         final prefs = await FreshModeHelper.getSharedPreferences();
         authToken = prefs.getString('authToken');
         userId = prefs.getString('userId');
-        
-        
-        
-        
-        
-        
-        
-        
       }
     }
     return authToken != null;
@@ -196,10 +207,16 @@ extension ApiServiceAuth on ApiService {
   Future<void> switchAccount(String accountId) async {
     print("Переключение на аккаунт: $accountId");
 
-    disconnect();
+    const invalidAccountError = 'invalid_token: Аккаунт недействителен';
 
     final accountManager = AccountManager();
     await accountManager.initialize();
+    final previousAccountId = accountManager.currentAccount?.id;
+    final previousToken = authToken;
+    final previousUserId = userId;
+
+    disconnect();
+
     await accountManager.switchAccount(accountId);
 
     final currentAccount = accountManager.currentAccount;
@@ -207,30 +224,77 @@ extension ApiServiceAuth on ApiService {
       authToken = currentAccount.token;
       userId = currentAccount.userId;
 
-      _messageQueue.clear();
-      _lastChatsPayload = null;
-      _chatsFetchedInThisSession = false;
-      _isSessionOnline = false;
-      _isSessionReady = false;
-      _handshakeSent = false;
+      _resetSession();
 
-      await connect();
+      bool invalidTokenDetected = false;
+      StreamSubscription? tempSubscription;
 
-      await waitUntilOnline();
+      tempSubscription = messages.listen((message) {
+        if (message != null && message['type'] == 'invalid_token') {
+          invalidTokenDetected = true;
+          tempSubscription?.cancel();
+        }
+      });
 
-      await getChatsAndContacts(force: true);
+      try {
+        await connect();
 
-      final profile = _lastChatsPayload?['profile'];
-      if (profile != null) {
-        final profileObj = Profile.fromJson(profile);
-        await accountManager.updateAccountProfile(accountId, profileObj);
+        await waitUntilOnline().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            if (invalidTokenDetected) {
+              throw Exception(invalidAccountError);
+            }
+            throw TimeoutException('Таймаут подключения');
+          },
+        );
+
+        if (invalidTokenDetected) {
+          throw Exception(invalidAccountError);
+        }
+
+        await getChatsAndContacts(force: true);
+
+        final profile = _lastChatsPayload?['profile'];
+        if (profile != null) {
+          final profileObj = Profile.fromJson(profile);
+          await accountManager.updateAccountProfile(accountId, profileObj);
+        }
+      } catch (e) {
+        tempSubscription?.cancel();
+
+        print("Ошибка переключения аккаунта: $e");
+
+        if (previousAccountId != null) {
+          print("Восстанавливаем предыдущий аккаунт: $previousAccountId");
+
+          await accountManager.switchAccount(previousAccountId);
+
+          disconnect();
+          authToken = previousToken;
+          userId = previousUserId;
+
+          _resetSession();
+
+          try {
+            await connect();
+            await waitUntilOnline().timeout(const Duration(seconds: 10));
+          } catch (reconnectError) {
+            print(
+              "Ошибка восстановления предыдущего аккаунта: $reconnectError",
+            );
+          }
+        }
+
+        rethrow;
+      } finally {
+        tempSubscription?.cancel();
       }
     }
   }
 
   Future<void> logout() async {
     try {
-      
       final accountManager = AccountManager();
       await accountManager.initialize();
       final currentAccount = accountManager.currentAccount;
@@ -260,7 +324,6 @@ extension ApiServiceAuth on ApiService {
         await prefs.remove('current_account_id');
       }
 
-      
       authToken = null;
       userId = null;
       _messageCache.clear();
@@ -318,11 +381,10 @@ extension ApiServiceAuth on ApiService {
     }
   }
 
-  
   Future<String> startRegistration(String phoneNumber) async {
     if (!_socketConnected || _socket == null) {
-        await connect();
-        await waitUntilOnline();
+      await connect();
+      await waitUntilOnline();
     }
 
     final payload = {
@@ -331,7 +393,6 @@ extension ApiServiceAuth on ApiService {
       "language": "ru",
     };
 
-    
     final completer = Completer<Map<String, dynamic>>();
     final subscription = messages.listen((message) {
       if (message['opcode'] == 17 && !completer.isCompleted) {

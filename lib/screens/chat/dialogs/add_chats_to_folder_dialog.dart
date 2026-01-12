@@ -20,8 +20,7 @@ class AddChatsToFolderDialog extends StatefulWidget {
   });
 
   @override
-  State<AddChatsToFolderDialog> createState() =>
-      _AddChatsToFolderDialogState();
+  State<AddChatsToFolderDialog> createState() => _AddChatsToFolderDialogState();
 }
 
 class _AddChatsToFolderDialogState extends State<AddChatsToFolderDialog> {
@@ -82,7 +81,7 @@ class _AddChatsToFolderDialogState extends State<AddChatsToFolderDialog> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: colors.onSurfaceVariant.withOpacity(0.4),
+                  color: colors.onSurfaceVariant.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -94,7 +93,7 @@ class _AddChatsToFolderDialogState extends State<AddChatsToFolderDialog> {
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                      color: colors.outline.withOpacity(0.2),
+                      color: colors.outline.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -253,7 +252,7 @@ class _AddChatsToFolderDialogState extends State<AddChatsToFolderDialog> {
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: colors.outline.withOpacity(0.2),
+                      color: colors.outline.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -285,4 +284,3 @@ class _AddChatsToFolderDialogState extends State<AddChatsToFolderDialog> {
     );
   }
 }
-

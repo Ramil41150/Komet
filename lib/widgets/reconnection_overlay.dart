@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 
 class ReconnectionOverlay extends StatelessWidget {
@@ -21,7 +19,7 @@ class ReconnectionOverlay extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Material(
-        color: Colors.black.withOpacity(0.7),
+        color: Colors.black.withValues(alpha: 0.7),
         child: Center(
           child: Container(
             padding: const EdgeInsets.all(24),
@@ -30,7 +28,7 @@ class ReconnectionOverlay extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -39,7 +37,6 @@ class ReconnectionOverlay extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-
                 SizedBox(
                   width: 48,
                   height: 48,
@@ -51,7 +48,6 @@ class ReconnectionOverlay extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-
 
                 Text(
                   message ?? 'Переподключение...',
@@ -65,14 +61,13 @@ class ReconnectionOverlay extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-
                 Text(
                   'Пожалуйста, подождите',
                   style: TextStyle(
                     fontSize: 14,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.7),
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                   textAlign: TextAlign.center,
                 ),

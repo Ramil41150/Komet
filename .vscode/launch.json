@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Komet (debug)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "args": [],
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "Komet (profile)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "args": [],
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "Komet (release)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "args": [],
+      "program": "lib/main.dart"
+    }
+  ]
+}

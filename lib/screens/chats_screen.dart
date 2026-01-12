@@ -28,6 +28,7 @@ import 'package:gwid/services/local_profile_manager.dart';
 import 'package:gwid/widgets/contact_name_widget.dart';
 import 'package:gwid/widgets/contact_avatar_widget.dart';
 import 'package:gwid/services/account_manager.dart';
+import 'package:gwid/services/chat_cache_service.dart';
 import 'package:gwid/models/account.dart';
 import 'package:gwid/services/message_queue_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -84,10 +85,13 @@ class _ChatsScreenState extends State<ChatsScreen>
   String _searchFilter = 'all';
   bool _hasRequestedBlockedContacts = false;
   final Set<int> _loadingContactIds = {};
+  bool _isSwitchingAccounts = false;
 
   List<ChatFolder> _folders = [];
   String? _selectedFolderId;
   late TabController _folderTabController;
+
+  int _currentFolderIndex = 0;
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -101,6 +105,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   bool _isReconnecting = false;
 
   SharedPreferences? _prefs;
+  Map<int, Map<String, dynamic>> _chatDrafts = {};
 
   Future<void> _initializePrefs() async {
     final p = await SharedPreferences.getInstance();
@@ -121,7 +126,8 @@ class _ChatsScreenState extends State<ChatsScreen>
     _chatsFuture = (() async {
       try {
         await ApiService.instance.waitUntilOnline();
-        return ApiService.instance.getChatsAndContacts();
+        final result = await ApiService.instance.getChatsAndContacts();
+        return result;
       } catch (e) {
         print('Ошибка получения чатов: $e');
         if (e.toString().contains('Auth token not found') ||
@@ -165,7 +171,6 @@ class _ChatsScreenState extends State<ChatsScreen>
             print("🔄 ChatsScreen: Обновление чатов запущено");
           }
         });
-
   }
 
   @override
@@ -268,11 +273,62 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
   }
 
+  void _updateChatLastMessage(int chatId, Message? newLastMessage) {
+    final chatIndex = _allChats.indexWhere((chat) => chat.id == chatId);
+    if (chatIndex != -1) {
+      final updatedChat = _allChats[chatIndex].copyWith(
+        lastMessage: newLastMessage,
+      );
+      setState(() {
+        _allChats[chatIndex] = updatedChat;
+      });
+      _filterChats();
+    }
+  }
+
+  void _updateChatDraft(int chatId, Map<String, dynamic>? draft) {
+    setState(() {
+      if (draft != null) {
+        _chatDrafts[chatId] = draft;
+      } else {
+        _chatDrafts.remove(chatId);
+      }
+    });
+  }
+
+  Future<void> _loadChatDrafts() async {
+    try {
+      final chatCacheService = ChatCacheService();
+      await chatCacheService.initialize();
+
+      final drafts = <int, Map<String, dynamic>>{};
+      for (final chat in _allChats) {
+        final draft = await chatCacheService.getChatInputState(chat.id);
+        if (draft != null &&
+            draft['text']?.toString().trim().isNotEmpty == true) {
+          drafts[chat.id] = draft;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _chatDrafts = drafts;
+        });
+      }
+    } catch (e) {
+      print('Ошибка загрузки черновиков: $e');
+    }
+  }
+
   void _navigateToLogin() {
     print('Перенаправляем на экран входа из-за недействительного токена');
   }
 
   void _showTokenExpiredDialog(String message) {
+    if (_isSwitchingAccounts) {
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -361,7 +417,10 @@ class _ChatsScreenState extends State<ChatsScreen>
             .toList();
         _contacts.clear();
         for (final contactJson in contacts) {
-          final contact = Contact.fromJson((contactJson as Map).cast<String, dynamic>());
+          _loadChatDrafts();
+          final contact = Contact.fromJson(
+            (contactJson as Map).cast<String, dynamic>(),
+          );
           _contacts[contact.id] = contact;
         }
 
@@ -376,7 +435,6 @@ class _ChatsScreenState extends State<ChatsScreen>
       }
     });
   }
-
 
   void _showAddMenu(BuildContext context) {
     showModalBottomSheet(
@@ -863,6 +921,48 @@ class _ChatsScreenState extends State<ChatsScreen>
         continue;
       }
 
+      if (chat.type == 'CHANNEL') {
+        final channelTitle = chat.title ?? '';
+        final channelDescription = chat.description ?? '';
+
+        if (channelTitle.toLowerCase().contains(query) ||
+            channelDescription.toLowerCase().contains(query) ||
+            'канал'.contains(query)) {
+          results.add(
+            SearchResult(
+              chat: chat,
+              contact: null,
+              matchedText: channelTitle.isNotEmpty ? channelTitle : 'Канал',
+              matchType: channelTitle.toLowerCase().contains(query)
+                  ? 'name'
+                  : 'description',
+            ),
+          );
+        }
+        continue;
+      }
+
+      if (_isGroupChat(chat)) {
+        final groupTitle = chat.title ?? '';
+        final groupDescription = chat.description ?? '';
+
+        if (groupTitle.toLowerCase().contains(query) ||
+            groupDescription.toLowerCase().contains(query) ||
+            'группа'.contains(query)) {
+          results.add(
+            SearchResult(
+              chat: chat,
+              contact: null,
+              matchedText: groupTitle.isNotEmpty ? groupTitle : 'Группа',
+              matchType: groupTitle.toLowerCase().contains(query)
+                  ? 'name'
+                  : 'description',
+            ),
+          );
+        }
+        continue;
+      }
+
       final otherParticipantId = chat.participantIds.firstWhere(
         (id) => id != chat.ownerId,
         orElse: () => 0,
@@ -979,10 +1079,14 @@ class _ChatsScreenState extends State<ChatsScreen>
           }
         }
 
-        _allChats.removeWhere((chat) => !newChatIds.contains(chat.id) && chat.id != 0);
+        _allChats.removeWhere(
+          (chat) => !newChatIds.contains(chat.id) && chat.id != 0,
+        );
 
         for (final contactJson in contacts) {
-          final contact = Contact.fromJson((contactJson as Map).cast<String, dynamic>());
+          final contact = Contact.fromJson(
+            (contactJson as Map).cast<String, dynamic>(),
+          );
           _contacts[contact.id] = contact;
         }
 
@@ -993,6 +1097,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       });
 
       _filterChats();
+      _loadChatDrafts();
     });
   }
 
@@ -1204,17 +1309,21 @@ class _ChatsScreenState extends State<ChatsScreen>
               );
             }
             if (snapshot.hasData) {
-              if (_allChats.isEmpty) {
+              if (!_chatsLoaded) {
                 final chatListJson = snapshot.data!['chats'] as List;
                 final contactListJson = snapshot.data!['contacts'] as List;
                 _allChats = chatListJson
-                    .map((json) => Chat.fromJson((json as Map<String, dynamic>)))
+                    .map(
+                      (json) => Chat.fromJson((json as Map<String, dynamic>)),
+                    )
                     .toList();
                 _chatsLoaded = true;
                 _listenForUpdates();
-                  final contacts = contactListJson.map(
-                    (json) => Contact.fromJson(json as Map<String, dynamic>),
-                  );
+
+                _loadChatDrafts();
+                final contacts = contactListJson.map(
+                  (json) => Contact.fromJson(json as Map<String, dynamic>),
+                );
                 _contacts = {for (var c in contacts) c.id: c};
 
                 final presence =
@@ -1270,16 +1379,26 @@ class _ChatsScreenState extends State<ChatsScreen>
       ],
     );
 
-    if (widget.hasScaffold) {
-      return ChatsScreenScaffold(
-        bodyContent: bodyContent,
-        buildAppBar: _buildAppBar,
-        buildAppDrawer: _buildAppDrawer,
-        onAddPressed: widget.isForwardMode ? null : () => _showAddMenu(context),
-      );
-    } else {
-      return bodyContent;
-    }
+    final content = widget.hasScaffold
+        ? ChatsScreenScaffold(
+            bodyContent: bodyContent,
+            buildAppBar: _buildAppBar,
+            buildAppDrawer: _buildAppDrawer,
+            onAddPressed: widget.isForwardMode
+                ? null
+                : () => _showAddMenu(context),
+          )
+        : bodyContent;
+
+    return PopScope(
+      canPop: !_isSearchExpanded,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _isSearchExpanded) {
+          _clearSearch();
+        }
+      },
+      child: content,
+    );
   }
 
   Widget _buildAppDrawer(BuildContext context) {
@@ -1416,8 +1535,8 @@ class _ChatsScreenState extends State<ChatsScreen>
                               child: Text(
                                 _myProfile?.formattedPhone ?? '',
                                 style: TextStyle(
-                                  color: colors.onPrimaryContainer.withOpacity(
-                                    0.8,
+                                  color: colors.onPrimaryContainer.withValues(
+                                    alpha: 0.8,
                                   ),
                                   fontSize: 14,
                                 ),
@@ -1522,12 +1641,26 @@ class _ChatsScreenState extends State<ChatsScreen>
                                           ? null
                                           : () async {
                                               Navigator.pop(context);
+                                              setState(() {
+                                                _isSwitchingAccounts = true;
+                                              });
                                               try {
                                                 await ApiService.instance
                                                     .switchAccount(account.id);
                                                 if (mounted) {
                                                   setState(() {
                                                     _isAccountsExpanded = false;
+
+                                                    _allChats.clear();
+                                                    _filteredChats.clear();
+                                                    _contacts.clear();
+                                                    _folders.clear();
+                                                    _chatDrafts.clear();
+                                                    _searchResults.clear();
+                                                    _myProfile = null;
+                                                    _isProfileLoading = true;
+                                                    _chatsLoaded = false;
+
                                                     _loadMyProfile();
                                                     _chatsFuture = (() async {
                                                       try {
@@ -1548,17 +1681,61 @@ class _ChatsScreenState extends State<ChatsScreen>
                                                 }
                                               } catch (e) {
                                                 if (mounted) {
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        'Ошибка переключения аккаунта: $e',
+                                                  final errorMessage = e
+                                                      .toString();
+
+                                                  const invalidTokenKeywords = [
+                                                    'invalid_token',
+                                                    'FAIL_WRONG_PASSWORD',
+                                                  ];
+                                                  final isInvalidToken =
+                                                      invalidTokenKeywords.any(
+                                                        (keyword) =>
+                                                            errorMessage
+                                                                .contains(
+                                                                  keyword,
+                                                                ),
+                                                      ) ||
+                                                      errorMessage.contains(
+                                                        'недействительн',
+                                                      );
+
+                                                  if (isInvalidToken) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Аккаунт недействителен. Требуется повторная авторизация.',
+                                                        ),
+                                                        backgroundColor:
+                                                            colors.error,
+                                                        duration:
+                                                            const Duration(
+                                                              seconds: 4,
+                                                            ),
                                                       ),
-                                                      backgroundColor:
-                                                          colors.error,
-                                                    ),
-                                                  );
+                                                    );
+                                                  } else {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Ошибка переключения аккаунта: $e',
+                                                        ),
+                                                        backgroundColor:
+                                                            colors.error,
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                              } finally {
+                                                if (mounted) {
+                                                  setState(() {
+                                                    _isSwitchingAccounts =
+                                                        false;
+                                                  });
                                                 }
                                               }
                                             },
@@ -1818,14 +1995,14 @@ class _ChatsScreenState extends State<ChatsScreen>
                   Icon(
                     Icons.search,
                     size: 64,
-                    color: colors.onSurfaceVariant.withOpacity(0.5),
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'Начните вводить для поиска',
                     style: TextStyle(
                       fontSize: 18,
-                      color: colors.onSurfaceVariant.withOpacity(0.7),
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1833,7 +2010,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                     'Или выберите чат из списка выше',
                     style: TextStyle(
                       fontSize: 14,
-                      color: colors.onSurfaceVariant.withOpacity(0.5),
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.5),
                     ),
                   ),
                 ],
@@ -1852,14 +2029,14 @@ class _ChatsScreenState extends State<ChatsScreen>
             Icon(
               Icons.search_off,
               size: 64,
-              color: colors.onSurfaceVariant.withOpacity(0.5),
+              color: colors.onSurfaceVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
               'Ничего не найдено',
               style: TextStyle(
                 fontSize: 18,
-                color: colors.onSurfaceVariant.withOpacity(0.7),
+                color: colors.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 8),
@@ -1867,7 +2044,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               'Попробуйте изменить поисковый запрос',
               style: TextStyle(
                 fontSize: 14,
-                color: colors.onSurfaceVariant.withOpacity(0.5),
+                color: colors.onSurfaceVariant.withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -1888,35 +2065,50 @@ class _ChatsScreenState extends State<ChatsScreen>
     final chat = result.chat;
     final contact = result.contact;
 
-    if (contact == null) return const SizedBox.shrink();
+    final bool isSavedMessages = _isSavedMessages(chat);
+    final bool isGroupChat = _isGroupChat(chat);
+    final bool isChannel = chat.type == 'CHANNEL';
+
+    Contact? contactToUse = contact;
+    if (contact == null && (isChannel || isGroupChat)) {
+      contactToUse = Contact(
+        id: chat.id,
+        name: isChannel ? (chat.title ?? 'Канал') : (chat.title ?? 'Группа'),
+        firstName: "",
+        lastName: "",
+        photoBaseUrl: chat.baseIconUrl,
+        description: chat.description,
+        isBlocked: false,
+        isBlockedByMe: false,
+      );
+    }
+
+    if (contactToUse == null) return const SizedBox.shrink();
+
+    final Contact contactToUseFinal = isSavedMessages
+        ? Contact(
+            id: chat.id,
+            name: "Избранное",
+            firstName: "",
+            lastName: "",
+            photoBaseUrl: null,
+            description: null,
+            isBlocked: false,
+            isBlockedByMe: false,
+          )
+        : contactToUse;
 
     return ListTile(
       onTap: () {
-        final bool isSavedMessages = _isSavedMessages(chat);
-        final bool isGroupChat = _isGroupChat(chat);
-        final bool isChannel = chat.type == 'CHANNEL';
         final participantCount =
             chat.participantsCount ?? chat.participantIds.length;
-
-        final Contact contactToUse = isSavedMessages
-            ? Contact(
-                id: chat.id,
-                name: "Избранное",
-                firstName: "",
-                lastName: "",
-                photoBaseUrl: null,
-                description: null,
-                isBlocked: false,
-                isBlockedByMe: false,
-              )
-            : contact;
 
         if (widget.isForwardMode && widget.onForwardChatSelected != null) {
           widget.onForwardChatSelected!(chat);
         } else if (widget.onChatSelected != null) {
           widget.onChatSelected!(
             chat,
-            contactToUse,
+            contactToUseFinal,
             isGroupChat,
             isChannel,
             participantCount,
@@ -1926,7 +2118,7 @@ class _ChatsScreenState extends State<ChatsScreen>
             MaterialPageRoute(
               builder: (context) => ChatScreen(
                 chatId: chat.id,
-                contact: contactToUse,
+                contact: contactToUseFinal,
                 myId: chat.ownerId,
                 pinnedMessage: chat.pinnedMessage,
                 isGroupChat: isGroupChat,
@@ -1943,22 +2135,24 @@ class _ChatsScreenState extends State<ChatsScreen>
       leading: CircleAvatar(
         radius: 24,
         backgroundColor: colors.primaryContainer,
-        backgroundImage: contact.photoBaseUrl != null
-            ? CachedNetworkImageProvider(contact.photoBaseUrl ?? '')
+        backgroundImage: contactToUseFinal.photoBaseUrl != null
+            ? CachedNetworkImageProvider(contactToUseFinal.photoBaseUrl ?? '')
             : null,
-        child: contact.photoBaseUrl == null
+        child: contactToUseFinal.photoBaseUrl == null
             ? Text(
-                contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '?',
+                contactToUseFinal.name.isNotEmpty
+                    ? contactToUseFinal.name[0].toUpperCase()
+                    : '?',
                 style: TextStyle(color: colors.onPrimaryContainer),
               )
             : null,
       ),
       title: _buildHighlightedText(
         getContactDisplayName(
-          contactId: contact.id,
-          originalName: contact.name,
-          originalFirstName: contact.firstName,
-          originalLastName: contact.lastName,
+          contactId: contactToUseFinal.id,
+          originalName: contactToUseFinal.name,
+          originalFirstName: contactToUseFinal.firstName,
+          originalLastName: contactToUseFinal.lastName,
         ),
         result.matchedText,
       ),
@@ -1971,7 +2165,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 : _buildSearchMessagePreview(chat, result.matchedText),
           if (result.matchType == 'description')
             _buildHighlightedText(
-              contact.description ?? '',
+              contactToUseFinal.description ?? '',
               result.matchedText,
             ),
           const SizedBox(height: 4),
@@ -2103,7 +2297,8 @@ class _ChatsScreenState extends State<ChatsScreen>
                       isBlockedByMe: false,
                     );
 
-                if (widget.isForwardMode && widget.onForwardChatSelected != null) {
+                if (widget.isForwardMode &&
+                    widget.onForwardChatSelected != null) {
                   widget.onForwardChatSelected!(chat);
                 } else if (widget.onChatSelected != null) {
                   widget.onChatSelected!(
@@ -2127,6 +2322,13 @@ class _ChatsScreenState extends State<ChatsScreen>
                         onChatUpdated: () {
                           _loadChatsAndContacts();
                         },
+                        onLastMessageChanged: (Message? newLastMessage) {
+                          _updateChatLastMessage(chat.id, newLastMessage);
+                        },
+                        onDraftChanged:
+                            (int chatId, Map<String, dynamic>? draft) {
+                              _updateChatDraft(chatId, draft);
+                            },
                         onChatRemoved: () {
                           _removeChatLocally(chat.id);
                         },
@@ -2360,7 +2562,10 @@ class _ChatsScreenState extends State<ChatsScreen>
           end: Alignment.bottomRight,
         ),
         border: Border(
-          bottom: BorderSide(color: colors.outline.withOpacity(0.2), width: 1),
+          bottom: BorderSide(
+            color: colors.outline.withValues(alpha: 0.2),
+            width: 1,
+          ),
         ),
       );
     } else if (themeProvider.folderTabsBackgroundType ==
@@ -2373,7 +2578,10 @@ class _ChatsScreenState extends State<ChatsScreen>
           fit: BoxFit.cover,
         ),
         border: Border(
-          bottom: BorderSide(color: colors.outline.withOpacity(0.2), width: 1),
+          bottom: BorderSide(
+            color: colors.outline.withValues(alpha: 0.2),
+            width: 1,
+          ),
         ),
       );
     }
@@ -2386,7 +2594,7 @@ class _ChatsScreenState extends State<ChatsScreen>
             color: colors.surface,
             border: Border(
               bottom: BorderSide(
-                color: colors.outline.withOpacity(0.2),
+                color: colors.outline.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -2542,7 +2750,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: colors.onSurfaceVariant.withOpacity(0.4),
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -2554,7 +2762,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
-                          color: colors.outline.withOpacity(0.2),
+                          color: colors.outline.withValues(alpha: 0.2),
                           width: 1,
                         ),
                       ),
@@ -2807,7 +3015,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: colors.onSurfaceVariant.withOpacity(0.4),
+                  color: colors.onSurfaceVariant.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -2981,7 +3189,7 @@ class _ChatsScreenState extends State<ChatsScreen>
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
             child: Material(
-              color: colors.surface.withOpacity(0.95),
+              color: colors.surface.withValues(alpha: 0.95),
               elevation: 6,
               borderRadius: BorderRadius.circular(12),
               child: InkWell(
@@ -3136,19 +3344,19 @@ class _ChatsScreenState extends State<ChatsScreen>
               onPressed: () => Navigator.of(context).pop(),
             )
           : _isSearchExpanded
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: _clearSearch,
-                )
-              : Builder(
-                  builder: (context) {
-                    return IconButton(
-                      icon: const Icon(Icons.menu_rounded),
-                      onPressed: () => Scaffold.of(context).openDrawer(),
-                      tooltip: 'Меню',
-                    );
-                  },
-                ),
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _clearSearch,
+            )
+          : Builder(
+              builder: (context) {
+                return IconButton(
+                  icon: const Icon(Icons.menu_rounded),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  tooltip: 'Меню',
+                );
+              },
+            ),
 
       title: widget.isForwardMode
           ? const Text(
@@ -3156,104 +3364,101 @@ class _ChatsScreenState extends State<ChatsScreen>
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             )
           : _isSearchExpanded
-              ? _buildSearchField(colors)
-              : Row(
-                  children: [
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder:
-                            (Widget child, Animation<double> animation) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              );
-                            },
-                        layoutBuilder: (currentChild, previousChildren) {
-                              return Stack(
-                                alignment: Alignment.centerLeft,
-                                children: [
-                                  ...previousChildren,
-                                  if (currentChild != null) currentChild,
-                                ],
-                              );
-                            },
-                        child: _buildCurrentTitleWidget(),
-                      ),
-                    ),
-                  ],
+          ? _buildSearchField(colors)
+          : Row(
+              children: [
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
+                    layoutBuilder: (currentChild, previousChildren) {
+                      return Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      );
+                    },
+                    child: _buildCurrentTitleWidget(),
+                  ),
                 ),
+              ],
+            ),
       actions: widget.isForwardMode
           ? []
           : _isSearchExpanded
-              ? [
-                  if (_searchQuery.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      child: IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                        },
-                      ),
-                    ),
-                  Container(
-                    margin: const EdgeInsets.only(left: 4),
-                    child: IconButton(
-                      icon: const Icon(Icons.filter_list),
-                      onPressed: _showSearchFilters,
-                    ),
-                  ),
-                ]
-              : [
-                  if ((_prefs?.getBool('show_sferum_button') ?? true))
-                    IconButton(
-                      icon: Image.asset(
-                        'assets/images/spermum.png',
-                        width: 28,
-                        height: 28,
-                      ),
-                      onPressed: _openSferum,
-                      tooltip: 'Сферум',
-                    ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.download, //ахуеть линтер ошибок не дал ! ! !
-                      color: Colors.white,
-                    ),
+          ? [
+              if (_searchQuery.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(left: 4),
+                  child: IconButton(
+                    icon: const Icon(Icons.clear),
                     onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const DownloadsScreen(),
-                        ),
-                      );
+                      _searchController.clear();
                     },
-                    tooltip: 'Загрузки',
                   ),
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _isSearchExpanded = true;
-                      });
-                      _searchAnimationController.forward();
-                      _searchFocusNode.requestFocus();
-                    },
-
-                    onLongPress: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const UserIdLookupScreen(),
-                        ),
-                      );
-                    },
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      padding: const EdgeInsets.all(8.0),
-                      child: const Icon(Icons.search),
+                ),
+              Container(
+                margin: const EdgeInsets.only(left: 4),
+                child: IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: _showSearchFilters,
+                ),
+              ),
+            ]
+          : [
+              if ((_prefs?.getBool('show_sferum_button') ?? true))
+                IconButton(
+                  icon: Image.asset(
+                    'assets/images/spermum.png',
+                    width: 28,
+                    height: 28,
+                  ),
+                  onPressed: _openSferum,
+                  tooltip: 'Сферум',
+                ),
+              IconButton(
+                icon: Icon(Icons.download, color: Colors.white),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const DownloadsScreen(),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
+                  );
+                },
+                tooltip: 'Загрузки',
+              ),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isSearchExpanded = true;
+                  });
+                  _searchAnimationController.forward();
+                  _searchFocusNode.requestFocus();
+                },
+
+                onLongPress: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const UserIdLookupScreen(),
+                    ),
+                  );
+                },
+                customBorder: const CircleBorder(),
+                child: Container(
+                  padding: const EdgeInsets.all(8.0),
+                  child: const Icon(Icons.search),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
     );
   }
 
@@ -3287,7 +3492,7 @@ class _ChatsScreenState extends State<ChatsScreen>
           hintText: 'Поиск в чатах...',
           hintStyle: TextStyle(color: colors.onSurfaceVariant),
           filled: true,
-          fillColor: colors.surfaceContainerHighest.withOpacity(0.3),
+          fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.3),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide.none,
@@ -3459,16 +3664,21 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  Message? _extractForwardedMessage(Map<String, dynamic> link, Message fallback) {
+  Message? _extractForwardedMessage(
+    Map<String, dynamic> link,
+    Message fallback,
+  ) {
     final forwardedMessage = link['message'] as Map<String, dynamic>?;
     if (forwardedMessage == null) return null;
 
-    final attaches = (forwardedMessage['attaches'] as List?)
+    final attaches =
+        (forwardedMessage['attaches'] as List?)
             ?.map((e) => (e as Map).cast<String, dynamic>())
             .toList() ??
         const [];
 
-    final elements = (forwardedMessage['elements'] as List?)
+    final elements =
+        (forwardedMessage['elements'] as List?)
             ?.map((e) => (e as Map).cast<String, dynamic>())
             .toList() ??
         const [];
@@ -3505,7 +3715,6 @@ class _ChatsScreenState extends State<ChatsScreen>
         );
       }
 
-      // Попробуем дозагрузить контакт, чтобы позже показать имя.
       _loadMissingContact(originalSenderId);
 
       final senderName = forwardedMessage?['senderName'] as String?;
@@ -3555,8 +3764,12 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     Widget messagePreview;
     if (message.text.isEmpty && message.attaches.isNotEmpty) {
-      final hasPhoto = message.attaches.any((attach) => attach['_type'] == 'PHOTO');
-      final hasContact = message.attaches.any((attach) => attach['_type'] == 'CONTACT');
+      final hasPhoto = message.attaches.any(
+        (attach) => attach['_type'] == 'PHOTO',
+      );
+      final hasContact = message.attaches.any(
+        (attach) => attach['_type'] == 'CONTACT',
+      );
 
       if (hasPhoto) {
         messagePreview = _buildPhotoAttachmentPreview(message);
@@ -3572,7 +3785,9 @@ class _ChatsScreenState extends State<ChatsScreen>
         );
       }
     } else if (message.attaches.isNotEmpty) {
-      final hasPhoto = message.attaches.any((attach) => attach['_type'] == 'PHOTO');
+      final hasPhoto = message.attaches.any(
+        (attach) => attach['_type'] == 'PHOTO',
+      );
       if (hasPhoto) {
         messagePreview = _buildPhotoWithCaptionPreview(message);
       } else {
@@ -3606,8 +3821,37 @@ class _ChatsScreenState extends State<ChatsScreen>
     final message = chat.lastMessage;
     final colors = Theme.of(context).colorScheme;
 
-    // Проверяем, наше ли последнее сообщение
-    final isMyMessage = _myProfile != null && message.senderId == _myProfile!.id;
+    final draftState = _chatDrafts[chat.id];
+    if (draftState != null) {
+      final draftText = draftState['text']?.toString().trim();
+      if (draftText != null && draftText.isNotEmpty) {
+        return RichText(
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: 'Черновик:',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              TextSpan(
+                text: draftText,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    final isMyMessage =
+        _myProfile != null && message.senderId == _myProfile!.id;
 
     Widget messagePreview;
     if (message.isForwarded && message.link is Map<String, dynamic>) {
@@ -3645,11 +3889,11 @@ class _ChatsScreenState extends State<ChatsScreen>
       messagePreview = _buildMessagePreviewContent(message, chat, colors);
     }
 
-    // Если это наше сообщение - добавляем статус
     if (isMyMessage) {
       final queueItem = MessageQueueService().findByCid(message.cid ?? 0);
-      final bool isPending = queueItem != null || message.id.startsWith('local_');
-      
+      final bool isPending =
+          queueItem != null || message.id.startsWith('local_');
+
       return Row(
         children: [
           if (isPending)
@@ -3682,7 +3926,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               imageUrl: photoUrl,
               fit: BoxFit.cover,
               placeholder: (context, url) => Container(
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Icon(
                   Icons.photo,
                   size: 12,
@@ -3690,7 +3934,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 ),
               ),
               errorWidget: (context, url, error) => Container(
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Icon(
                   Icons.photo,
                   size: 12,
@@ -3736,7 +3980,9 @@ class _ChatsScreenState extends State<ChatsScreen>
                     imageUrl: photoUrl,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       child: Icon(
                         Icons.person,
                         size: 12,
@@ -3744,7 +3990,9 @@ class _ChatsScreenState extends State<ChatsScreen>
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       child: Icon(
                         Icons.person,
                         size: 12,
@@ -3753,7 +4001,9 @@ class _ChatsScreenState extends State<ChatsScreen>
                     ),
                   )
                 : Container(
-                    color: Theme.of(context).colorScheme.surfaceVariant,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     child: Icon(
                       Icons.person,
                       size: 12,
@@ -3769,7 +4019,7 @@ class _ChatsScreenState extends State<ChatsScreen>
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface, // Белый цвет вместо серого
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -3795,7 +4045,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               imageUrl: photoUrl,
               fit: BoxFit.cover,
               placeholder: (context, url) => Container(
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Icon(
                   Icons.photo,
                   size: 12,
@@ -3803,7 +4053,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 ),
               ),
               errorWidget: (context, url, error) => Container(
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Icon(
                   Icons.photo,
                   size: 12,
@@ -3840,15 +4090,17 @@ class _ChatsScreenState extends State<ChatsScreen>
     return null;
   }
 
-  Map<String, String?>? _extractFirstContactData(List<Map<String, dynamic>> attaches) {
+  Map<String, String?>? _extractFirstContactData(
+    List<Map<String, dynamic>> attaches,
+  ) {
     for (final attach in attaches) {
       if (attach['_type'] == 'CONTACT') {
         final name = attach['name'] as String?;
         final firstName = attach['firstName'] as String?;
         final lastName = attach['lastName'] as String?;
-        final photoUrl = attach['photoUrl'] as String? ?? attach['baseUrl'] as String?;
+        final photoUrl =
+            attach['photoUrl'] as String? ?? attach['baseUrl'] as String?;
 
-        // Формируем отображаемое имя
         String displayName;
         if (name != null && name.isNotEmpty) {
           displayName = name;
@@ -3860,18 +4112,13 @@ class _ChatsScreenState extends State<ChatsScreen>
           displayName = 'Контакт';
         }
 
-        return {
-          'name': displayName,
-          'photoUrl': photoUrl,
-        };
+        return {'name': displayName, 'photoUrl': photoUrl};
       }
     }
     return null;
   }
 
   String _getAttachmentTypeText(List<Map<String, dynamic>> attaches) {
-    // Проверяем типы вложений в порядке приоритета
-    // Контакты обрабатываются отдельно с превью
     if (attaches.any((attach) => attach['_type'] == 'VIDEO')) {
       return 'Видео';
     }
@@ -3894,17 +4141,14 @@ class _ChatsScreenState extends State<ChatsScreen>
       return 'Кнопки';
     }
 
-    // Если есть другие типы или ничего не найдено
     return 'Вложение';
   }
 
   String _getSenderDisplayName(Chat chat, Message message) {
-    // Если это наша группа или канал, показываем имя отправителя
     final isGroupChat = _isGroupChat(chat);
     final isChannel = chat.type == 'CHANNEL';
 
     if (!isGroupChat && !isChannel) {
-      // В личных чатах не показываем имя отправителя
       return '';
     }
 
@@ -4007,8 +4251,12 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     if (message.text.isEmpty && message.attaches.isNotEmpty) {
       // Проверяем, есть ли фото или контакты среди вложений
-      final hasPhoto = message.attaches.any((attach) => attach['_type'] == 'PHOTO');
-      final hasContact = message.attaches.any((attach) => attach['_type'] == 'CONTACT');
+      final hasPhoto = message.attaches.any(
+        (attach) => attach['_type'] == 'PHOTO',
+      );
+      final hasContact = message.attaches.any(
+        (attach) => attach['_type'] == 'CONTACT',
+      );
 
       if (hasPhoto) {
         return _buildPhotoAttachmentPreview(message);
@@ -4016,7 +4264,11 @@ class _ChatsScreenState extends State<ChatsScreen>
         return _buildContactAttachmentPreview(message);
       } else {
         final attachmentText = _getAttachmentTypeText(message.attaches);
-        return Text(attachmentText, maxLines: 1, overflow: TextOverflow.ellipsis);
+        return Text(
+          attachmentText,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
       }
     }
 
@@ -4226,6 +4478,12 @@ class _ChatsScreenState extends State<ChatsScreen>
                 isChannel: isChannel,
                 participantCount: participantCount,
                 initialUnreadCount: chat.newMessages,
+                onLastMessageChanged: (Message? newLastMessage) {
+                  _updateChatLastMessage(chat.id, newLastMessage);
+                },
+                onDraftChanged: (int chatId, Map<String, dynamic>? draft) {
+                  _updateChatDraft(chatId, draft);
+                },
                 onChatRemoved: () {
                   _removeChatLocally(chat.id);
                 },
@@ -4328,8 +4586,3 @@ class _ChatsScreenState extends State<ChatsScreen>
     super.dispose();
   }
 }
-
-
-
-
-

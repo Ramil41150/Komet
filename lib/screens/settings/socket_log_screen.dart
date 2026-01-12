@@ -1,5 +1,3 @@
-
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -77,7 +75,7 @@ class _SocketLogScreenState extends State<SocketLogScreen>
   final LogStatistics _statistics = LogStatistics();
   bool _showStatistics = false;
   late AnimationController _animationController;
-  
+
   // Режимы отображения
   ViewMode _viewMode = ViewMode.all;
   bool _userScrolledUp = false;
@@ -136,7 +134,6 @@ class _SocketLogScreenState extends State<SocketLogScreen>
     return LogType.status;
   }
 
-
   void _addLogEntry(String logMessage, {bool isInitial = false}) {
     if (_isPaused && !isInitial) return;
 
@@ -181,7 +178,7 @@ class _SocketLogScreenState extends State<SocketLogScreen>
 
   void _scrollToBottom() {
     if (!_isAutoScrollEnabled) return;
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -268,7 +265,6 @@ class _SocketLogScreenState extends State<SocketLogScreen>
     );
   }
 
-
   void _applyFiltersAndSearch() {
     List<LogEntry> tempFiltered = _allLogEntries.where((entry) {
       return _activeFilters.contains(entry.type);
@@ -278,7 +274,9 @@ class _SocketLogScreenState extends State<SocketLogScreen>
     if (_viewMode == ViewMode.sendOnly) {
       tempFiltered = tempFiltered.where((e) => e.type == LogType.send).toList();
     } else if (_viewMode == ViewMode.receiveOnly) {
-      tempFiltered = tempFiltered.where((e) => e.type == LogType.receive).toList();
+      tempFiltered = tempFiltered
+          .where((e) => e.type == LogType.receive)
+          .toList();
     }
 
     if (_searchQuery.isNotEmpty) {
@@ -337,17 +335,33 @@ class _SocketLogScreenState extends State<SocketLogScreen>
   }
 
   Widget _buildSplitView() {
-    final sentLogs = _allLogEntries.where((e) => e.type == LogType.send).toList();
-    final receivedLogs = _allLogEntries.where((e) => e.type == LogType.receive).toList();
+    final sentLogs = _allLogEntries
+        .where((e) => e.type == LogType.send)
+        .toList();
+    final receivedLogs = _allLogEntries
+        .where((e) => e.type == LogType.receive)
+        .toList();
 
     // Применяем поиск
     final filteredSent = _searchQuery.isEmpty
         ? sentLogs
-        : sentLogs.where((e) => e.message.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-    
+        : sentLogs
+              .where(
+                (e) => e.message.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ),
+              )
+              .toList();
+
     final filteredReceived = _searchQuery.isEmpty
         ? receivedLogs
-        : receivedLogs.where((e) => e.message.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+        : receivedLogs
+              .where(
+                (e) => e.message.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ),
+              )
+              .toList();
 
     return Row(
       children: [
@@ -358,8 +372,10 @@ class _SocketLogScreenState extends State<SocketLogScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.2),
-                  border: Border(bottom: BorderSide(color: Colors.blue, width: 2)),
+                  color: Colors.blue.withValues(alpha: 0.2),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.blue, width: 2),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -407,8 +423,10 @@ class _SocketLogScreenState extends State<SocketLogScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  border: Border(bottom: BorderSide(color: Colors.green, width: 2)),
+                  color: Colors.green.withValues(alpha: 0.2),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.green, width: 2),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -472,13 +490,17 @@ class _SocketLogScreenState extends State<SocketLogScreen>
               "[${DateFormat('HH:mm:ss.SSS').format(entry.timestamp)}] ${entry.message}",
         )
         .join('\n\n');
-    await Share.share(logText, subject: 'Gwid Connection Log');
+    await SharePlus.instance.share(
+      ShareParams(text: logText, subject: 'Gwid Connection Log'),
+    );
   }
 
   Future<void> _exportLogsToFile() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final timestamp = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
+      final timestamp = DateFormat(
+        'yyyy-MM-dd_HH-mm-ss',
+      ).format(DateTime.now());
       final file = File('${directory.path}/socket_logs_$timestamp.txt');
 
       final logText = _filteredLogEntries
@@ -496,16 +518,18 @@ class _SocketLogScreenState extends State<SocketLogScreen>
             content: Text('Логи сохранены: ${file.path}'),
             action: SnackBarAction(
               label: 'Открыть',
-              onPressed: () => Share.shareXFiles([XFile(file.path)]),
+              onPressed: () => SharePlus.instance.share(
+                ShareParams(files: [XFile(file.path)]),
+              ),
             ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка сохранения: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка сохранения: $e')));
       }
     }
   }
@@ -526,7 +550,6 @@ class _SocketLogScreenState extends State<SocketLogScreen>
     _animationController.dispose();
     super.dispose();
   }
-
 
   Widget _buildStatisticsPanel() {
     return AnimatedContainer(
@@ -623,10 +646,7 @@ class _SocketLogScreenState extends State<SocketLogScreen>
             color: color,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11),
-        ),
+        Text(label, style: const TextStyle(fontSize: 11)),
       ],
     );
   }
@@ -723,10 +743,10 @@ class _SocketLogScreenState extends State<SocketLogScreen>
             _viewMode == ViewMode.split
                 ? Icons.call_split
                 : _viewMode == ViewMode.sendOnly
-                    ? Icons.arrow_upward
-                    : _viewMode == ViewMode.receiveOnly
-                        ? Icons.arrow_downward
-                        : Icons.view_list,
+                ? Icons.arrow_upward
+                : _viewMode == ViewMode.receiveOnly
+                ? Icons.arrow_downward
+                : Icons.view_list,
           ),
           tooltip: "Режим отображения",
           onPressed: _showViewModeDialog,
@@ -780,17 +800,14 @@ class _SocketLogScreenState extends State<SocketLogScreen>
                   Text('Очистить'),
                 ],
               ),
-              onTap: () => Future.delayed(
-                const Duration(milliseconds: 100),
-                _clearLogs,
-              ),
+              onTap: () =>
+                  Future.delayed(const Duration(milliseconds: 100), _clearLogs),
             ),
           ],
         ),
       ],
     );
   }
-
 
   AppBar _buildSearchAppBar() {
     return AppBar(
@@ -821,13 +838,13 @@ class _SocketLogScreenState extends State<SocketLogScreen>
       appBar: _isSearchActive ? _buildSearchAppBar() : _buildDefaultAppBar(),
       body: Column(
         children: [
-          if (!_isSearchActive && _viewMode != ViewMode.split) 
+          if (!_isSearchActive && _viewMode != ViewMode.split)
             _buildFilterChips(),
           _buildStatisticsPanel(),
           if (_isPaused)
             Container(
               width: double.infinity,
-              color: Colors.orange.withOpacity(0.2),
+              color: Colors.orange.withValues(alpha: 0.2),
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -844,9 +861,11 @@ class _SocketLogScreenState extends State<SocketLogScreen>
                 ],
               ),
             ),
-          if (!_isAutoScrollEnabled && _userScrolledUp && _viewMode != ViewMode.split)
+          if (!_isAutoScrollEnabled &&
+              _userScrolledUp &&
+              _viewMode != ViewMode.split)
             Material(
-              color: Colors.blue.withOpacity(0.2),
+              color: Colors.blue.withValues(alpha: 0.2),
               child: InkWell(
                 onTap: _toggleAutoScroll,
                 child: Container(
@@ -855,7 +874,11 @@ class _SocketLogScreenState extends State<SocketLogScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.info_outline, color: Colors.blue, size: 18),
+                      const Icon(
+                        Icons.info_outline,
+                        color: Colors.blue,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Автопрокрутка отключена. Нажмите для включения',
@@ -870,7 +893,9 @@ class _SocketLogScreenState extends State<SocketLogScreen>
               ),
             ),
           Expanded(
-            child: _viewMode == ViewMode.split ? _buildSplitView() : _buildLogsList(),
+            child: _viewMode == ViewMode.split
+                ? _buildSplitView()
+                : _buildLogsList(),
           ),
         ],
       ),
@@ -913,7 +938,6 @@ class _SocketLogScreenState extends State<SocketLogScreen>
   }
 }
 
-
 class AnimatedLogEntryCard extends StatefulWidget {
   final LogEntry entry;
   final int index;
@@ -948,10 +972,7 @@ class _AnimatedLogEntryCardState extends State<AnimatedLogEntryCard>
       curve: Curves.easeOutBack,
     );
 
-    _fadeAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeIn,
-    );
+    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
 
     Future.delayed(Duration(milliseconds: widget.index * 20), () {
       if (mounted) _controller.forward();
@@ -975,39 +996,39 @@ class _AnimatedLogEntryCardState extends State<AnimatedLogEntryCard>
         return (
           Icons.arrow_upward_rounded,
           theme.colorScheme.primary,
-          theme.colorScheme.primary.withOpacity(0.1)
+          theme.colorScheme.primary.withValues(alpha: 0.1),
         );
       case LogType.receive:
         return (
           Icons.arrow_downward_rounded,
           Colors.green,
-          Colors.green.withOpacity(0.1)
+          Colors.green.withValues(alpha: 0.1),
         );
       case LogType.pingpong:
         return (
           Icons.sync_alt_rounded,
           Colors.grey,
-          Colors.grey.withOpacity(0.1)
+          Colors.grey.withValues(alpha: 0.1),
         );
       case LogType.status:
         if (message.startsWith('✅')) {
           return (
             Icons.check_circle_rounded,
             Colors.green,
-            Colors.green.withOpacity(0.1)
+            Colors.green.withValues(alpha: 0.1),
           );
         }
         if (message.startsWith('❌')) {
           return (
             Icons.error_rounded,
             theme.colorScheme.error,
-            theme.colorScheme.error.withOpacity(0.1)
+            theme.colorScheme.error.withValues(alpha: 0.1),
           );
         }
         return (
           Icons.info_rounded,
           Colors.orange.shade600,
-          Colors.orange.withOpacity(0.1)
+          Colors.orange.withValues(alpha: 0.1),
         );
     }
   }
@@ -1095,11 +1116,15 @@ class _AnimatedLogEntryCardState extends State<AnimatedLogEntryCard>
 
   @override
   Widget build(BuildContext context) {
-    final (icon, color, bgColor) =
-        _getVisuals(widget.entry.type, widget.entry.message, context);
+    final (icon, color, bgColor) = _getVisuals(
+      widget.entry.type,
+      widget.entry.message,
+      context,
+    );
     final (opcode, seq) = _extractInfo(widget.entry.message);
-    final formattedTime =
-        DateFormat('HH:mm:ss.SSS').format(widget.entry.timestamp);
+    final formattedTime = DateFormat(
+      'HH:mm:ss.SSS',
+    ).format(widget.entry.timestamp);
     final theme = Theme.of(context);
 
     final displayMessage = _isExpanded
@@ -1142,7 +1167,7 @@ class _AnimatedLogEntryCardState extends State<AnimatedLogEntryCard>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.2),
+                          color: color.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(icon, color: color, size: 20),
@@ -1172,16 +1197,16 @@ class _AnimatedLogEntryCardState extends State<AnimatedLogEntryCard>
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: color.withOpacity(0.2),
+                                        color: color.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
                                         'OP: $opcode',
                                         style: theme.textTheme.labelSmall
                                             ?.copyWith(
-                                          color: color,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                              color: color,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                       ),
                                     ),
                                   if (seq != null)
@@ -1191,16 +1216,16 @@ class _AnimatedLogEntryCardState extends State<AnimatedLogEntryCard>
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: color.withOpacity(0.2),
+                                        color: color.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
                                         'SEQ: $seq',
                                         style: theme.textTheme.labelSmall
                                             ?.copyWith(
-                                          color: color,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                              color: color,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                       ),
                                     ),
                                 ],
@@ -1210,9 +1235,7 @@ class _AnimatedLogEntryCardState extends State<AnimatedLogEntryCard>
                       ),
                       if (widget.entry.message.length > 200)
                         Icon(
-                          _isExpanded
-                              ? Icons.expand_less
-                              : Icons.expand_more,
+                          _isExpanded ? Icons.expand_less : Icons.expand_more,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                     ],

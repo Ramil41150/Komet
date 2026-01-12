@@ -34,11 +34,11 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen>
 
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -242,10 +242,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              colors.surfaceContainerHighest,
-              colors.surfaceContainer,
-            ],
+            colors: [colors.surfaceContainerHighest, colors.surfaceContainer],
           ),
         ),
         const SizedBox(height: 28),
@@ -264,10 +261,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              colors.surfaceContainerHighest,
-              colors.surfaceContainer,
-            ],
+            colors: [colors.surfaceContainerHighest, colors.surfaceContainer],
           ),
         ),
         const SizedBox(height: 28),
@@ -275,19 +269,13 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen>
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: colors.surfaceContainerHighest.withOpacity(0.5),
+            color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: colors.outline.withOpacity(0.2),
-            ),
+            border: Border.all(color: colors.outline.withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                color: colors.primary,
-                size: 24,
-              ),
+              Icon(Icons.info_outline, color: colors.primary, size: 24),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
@@ -337,7 +325,7 @@ class _PrivacySecurityCard extends StatelessWidget {
             gradient: gradient,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: colors.outline.withOpacity(0.2),
+              color: colors.outline.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -350,14 +338,10 @@ class _PrivacySecurityCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: colors.primaryContainer.withOpacity(0.5),
+                      color: colors.primaryContainer.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(
-                      icon,
-                      color: colors.primary,
-                      size: 24,
-                    ),
+                    child: Icon(icon, color: colors.primary, size: 24),
                   ),
                   const Spacer(),
                 ],
@@ -391,11 +375,7 @@ class _PrivacySecurityCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(
-                    Icons.arrow_forward,
-                    color: colors.primary,
-                    size: 18,
-                  ),
+                  Icon(Icons.arrow_forward, color: colors.primary, size: 18),
                 ],
               ),
             ],

@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:collection';
 import 'package:gwid/utils/fresh_mode_helper.dart';
 
-enum QueueItemType {
-  sendMessage,
-  loadChat,
-}
+enum QueueItemType { sendMessage, loadChat }
 
 class QueueItem {
   final String id;
@@ -61,16 +59,24 @@ class MessageQueueService {
   MessageQueueService._internal();
 
   final List<QueueItem> _queue = [];
-  final StreamController<List<QueueItem>> _queueController = 
+  final StreamController<List<QueueItem>> _queueController =
       StreamController<List<QueueItem>>.broadcast();
+
+  // Локальный массив для отслеживания обработанных сообщений из очереди
+  // LinkedHashSet сохраняет порядок вставки
+  final LinkedHashSet<String> _processedMessageIds = LinkedHashSet<String>();
+  static const int _maxProcessedMessageIds = 1000;
+  static const int _cleanupBatchSize = 100;
 
   Stream<List<QueueItem>> get queueStream => _queueController.stream;
   List<QueueItem> get queue => List.unmodifiable(_queue);
 
   static const String _queueKey = 'message_queue';
+  static const String _processedIdsKey = 'processed_message_ids';
 
   Future<void> initialize() async {
     await _loadQueue();
+    await _loadProcessedIds();
   }
 
   Future<void> _loadQueue() async {
@@ -78,7 +84,7 @@ class MessageQueueService {
       _queue.clear();
       return;
     }
-    
+
     try {
       final prefs = await FreshModeHelper.getSharedPreferences();
       final queueJson = prefs.getString(_queueKey);
@@ -86,7 +92,9 @@ class MessageQueueService {
         final List<dynamic> items = jsonDecode(queueJson);
         _queue.clear();
         _queue.addAll(
-          items.map((json) => QueueItem.fromJson(json)).where((item) => item.persistent),
+          items
+              .map((json) => QueueItem.fromJson(json))
+              .where((item) => item.persistent),
         );
         print('Загружено ${_queue.length} элементов из очереди');
         _queueController.add(_queue);
@@ -96,9 +104,29 @@ class MessageQueueService {
     }
   }
 
+  Future<void> _loadProcessedIds() async {
+    if (FreshModeHelper.shouldSkipLoad()) {
+      _processedMessageIds.clear();
+      return;
+    }
+
+    try {
+      final prefs = await FreshModeHelper.getSharedPreferences();
+      final processedIdsJson = prefs.getString(_processedIdsKey);
+      if (processedIdsJson != null) {
+        final List<dynamic> ids = jsonDecode(processedIdsJson);
+        _processedMessageIds.clear();
+        _processedMessageIds.addAll(ids.cast<String>());
+        print('Загружено ${_processedMessageIds.length} обработанных ID');
+      }
+    } catch (e) {
+      print('Ошибка загрузки обработанных ID: $e');
+    }
+  }
+
   Future<void> _saveQueue() async {
     if (FreshModeHelper.shouldSkipSave()) return;
-    
+
     try {
       final prefs = await FreshModeHelper.getSharedPreferences();
       final persistentItems = _queue.where((item) => item.persistent).toList();
@@ -111,13 +139,27 @@ class MessageQueueService {
     }
   }
 
+  Future<void> _saveProcessedIds() async {
+    if (FreshModeHelper.shouldSkipSave()) return;
+
+    try {
+      final prefs = await FreshModeHelper.getSharedPreferences();
+      final processedIdsJson = jsonEncode(_processedMessageIds.toList());
+      await prefs.setString(_processedIdsKey, processedIdsJson);
+    } catch (e) {
+      print('Ошибка сохранения обработанных ID: $e');
+    }
+  }
+
   void addToQueue(QueueItem item) {
     _queue.add(item);
     _queueController.add(_queue);
     if (item.persistent) {
       _saveQueue();
     }
-    print('Добавлен в очередь: ${item.type.name}, opcode=${item.opcode}, persistent=${item.persistent}');
+    print(
+      'Добавлен в очередь: ${item.type.name}, opcode=${item.opcode}, persistent=${item.persistent}',
+    );
   }
 
   void removeFromQueue(String itemId) {
@@ -138,7 +180,9 @@ class MessageQueueService {
       _queue.removeWhere((item) => !item.persistent);
     }
     _queueController.add(_queue);
-    print('Временная очередь очищена${chatId != null ? ' для чата $chatId' : ''}');
+    print(
+      'Временная очередь очищена${chatId != null ? ' для чата $chatId' : ''}',
+    );
   }
 
   void clearAllQueues() {
@@ -154,7 +198,9 @@ class MessageQueueService {
 
   List<QueueItem> getTemporaryItems({int? chatId}) {
     if (chatId != null) {
-      return _queue.where((item) => !item.persistent && item.chatId == chatId).toList();
+      return _queue
+          .where((item) => !item.persistent && item.chatId == chatId)
+          .toList();
     }
     return _queue.where((item) => !item.persistent).toList();
   }
@@ -165,6 +211,30 @@ class MessageQueueService {
     } catch (e) {
       return null;
     }
+  }
+
+  /// Проверяет, было ли сообщение уже обработано
+  bool isMessageProcessed(String messageId) {
+    return _processedMessageIds.contains(messageId);
+  }
+
+  /// Отмечает сообщение как обработанное
+  void markMessageAsProcessed(String messageId) {
+    _processedMessageIds.add(messageId);
+    // Ограничиваем размер множества, чтобы не занимать слишком много памяти
+    if (_processedMessageIds.length > _maxProcessedMessageIds) {
+      // LinkedHashSet сохраняет порядок вставки, поэтому удаляем самые старые
+      final toRemove = _processedMessageIds.take(_cleanupBatchSize).toList();
+      _processedMessageIds.removeAll(toRemove);
+    }
+    // Сохраняем обновленный список в SharedPreferences асинхронно
+    unawaited(_saveProcessedIds());
+  }
+
+  /// Очищает список обработанных сообщений
+  void clearProcessedMessages() {
+    _processedMessageIds.clear();
+    unawaited(_saveProcessedIds());
   }
 
   void dispose() {

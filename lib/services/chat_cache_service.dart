@@ -117,7 +117,6 @@ class ChatCacheService {
     return null;
   }
 
-  
   Future<void> cacheChatContacts(int chatId, List<Contact> contacts) async {
     try {
       final key = 'chat_contacts_$chatId';
@@ -186,6 +185,9 @@ class ChatCacheService {
               'cid': message.cid,
               'reactionInfo': message.reactionInfo,
               'link': message.link,
+              'isDeleted': message.isDeleted,
+              'originalText': message.originalText,
+              'elements': message.elements, // Добавлено для полноты
             },
           )
           .toList();
@@ -219,11 +221,12 @@ class ChatCacheService {
 
       if (cached != null) {
         // Проверяем, нет ли уже такого сообщения (по id или cid)
-        final exists = cached.any((m) => 
-          m.id == message.id || 
-          (m.cid != null && message.cid != null && m.cid == message.cid)
+        final exists = cached.any(
+          (m) =>
+              m.id == message.id ||
+              (m.cid != null && message.cid != null && m.cid == message.cid),
         );
-        
+
         if (!exists) {
           // Добавляем новое сообщение, сохраняя порядок по времени
           final updatedMessages = [...cached, message]
@@ -231,12 +234,17 @@ class ChatCacheService {
           await cacheChatMessages(chatId, updatedMessages);
         } else {
           // Обновляем существующее сообщение
-          final updatedMessages = cached.map((m) => 
-            (m.id == message.id || 
-             (m.cid != null && message.cid != null && m.cid == message.cid))
-              ? message
-              : m
-          ).toList();
+          final updatedMessages = cached
+              .map(
+                (m) =>
+                    (m.id == message.id ||
+                        (m.cid != null &&
+                            message.cid != null &&
+                            m.cid == message.cid))
+                    ? message
+                    : m,
+              )
+              .toList();
           await cacheChatMessages(chatId, updatedMessages);
         }
       } else {
@@ -315,6 +323,8 @@ class ChatCacheService {
           'cid': lastMessage.cid,
           'reactionInfo': lastMessage.reactionInfo,
           'link': lastMessage.link,
+          'isDeleted': lastMessage.isDeleted,
+          'originalText': lastMessage.originalText,
         };
         await _cacheService.set(key, messageData, ttl: _chatsTTL);
       } else {
@@ -411,7 +421,8 @@ class ChatCacheService {
   /// Модель для состояния ввода чата
   static const String _chatInputStateKey = 'chat_input_state';
 
-  Future<void> saveChatInputState(int chatId, {
+  Future<void> saveChatInputState(
+    int chatId, {
     required String text,
     required List<Map<String, dynamic>> elements,
     Map<String, dynamic>? replyingToMessage,
