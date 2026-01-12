@@ -50,27 +50,34 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           
           PP_UUID=$(security cms -D -i profile.mobileprovision | plutil -extract UUID raw -o - -)
+          BUNDLE_ID=$(security cms -D -i profile.mobileprovision | plutil -extract Entitlements.application-identifier raw -o - - | sed 's/^[^.]*\.//')
+          
+          echo "=========================================="
           echo "Provisioning Profile UUID: $PP_UUID"
+          echo "Bundle ID from profile: $BUNDLE_ID"
+          echo "=========================================="
           
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
           
-          echo "Certificate installed:"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-          echo "Provisioning profile installed at:"
-          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
+
+      - name: Update Bundle ID to match provisioning profile
+        run: |
+          BUNDLE_ID=$(security cms -D -i profile.mobileprovision | plutil -extract Entitlements.application-identifier raw -o - - | sed 's/^[^.]*\.//')
+          echo "Setting Bundle ID to: $BUNDLE_ID"
+          
+          # Обновить Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" ios/Runner/Info.plist
+          
+          # Обновить project.pbxproj
+          sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = com.gwid.app.gwid;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID;/g" ios/Runner.xcodeproj/project.pbxproj
 
       - name: Create ExportOptions.plist
         run: |
-          PP_UUID=$(security cms -D -i profile.mobileprovision | plutil -extract UUID raw -o - -)
           TEAM_ID=$(security cms -D -i profile.mobileprovision | plutil -extract TeamIdentifier.0 raw -o - -)
           PP_NAME=$(security cms -D -i profile.mobileprovision | plutil -extract Name raw -o - -)
           BUNDLE_ID=$(security cms -D -i profile.mobileprovision | plutil -extract Entitlements.application-identifier raw -o - - | sed 's/^[^.]*\.//')
-          
-          echo "UUID: $PP_UUID"
-          echo "Team ID: $TEAM_ID"
-          echo "Name: $PP_NAME"
-          echo "Bundle ID: $BUNDLE_ID"
           
           cat > ios/ExportOptions.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -93,8 +100,6 @@ jobs:
           </dict>
           </plist>
           EOF
-          
-          cat ios/ExportOptions.plist
 
       - name: Install CocoaPods dependencies
         run: |
@@ -106,12 +111,10 @@ jobs:
           cd ios
           
           CERT_NAME=$(security find-identity -v -p codesigning $RUNNER_TEMP/app-signing.keychain-db | grep "Apple Distribution" | head -1 | grep -o '".*"' | sed 's/"//g')
-          PP_UUID=$(security cms -D -i ../profile.mobileprovision | plutil -extract UUID raw -o - -)
           TEAM_ID=$(security cms -D -i ../profile.mobileprovision | plutil -extract TeamIdentifier.0 raw -o - -)
           
-          echo "Certificate: $CERT_NAME"
+          echo "Building with Certificate: $CERT_NAME"
           echo "Team ID: $TEAM_ID"
-          echo "PP UUID: $PP_UUID"
           
           xcodebuild -workspace Runner.xcworkspace \
             -scheme Runner \
@@ -122,13 +125,14 @@ jobs:
             DEVELOPMENT_TEAM="$TEAM_ID" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="$CERT_NAME" \
-            PROVISIONING_PROFILE_SPECIFIER="$PP_UUID" \
+            -allowProvisioningUpdates \
             archive
           
           xcodebuild -exportArchive \
             -archivePath $PWD/build/Runner.xcarchive \
             -exportPath $PWD/build \
-            -exportOptionsPlist ExportOptions.plist
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates
 
       - name: Upload to TestFlight
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
